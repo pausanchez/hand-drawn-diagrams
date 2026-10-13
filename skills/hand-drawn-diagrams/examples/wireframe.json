@@ -1,0 +1,19 @@
+{
+  "title": "Wireframe · Mapa de fincas colindantes",
+  "subtitle": "Herramienta interna para que la Asociación vea qué parcelas vecinas aún no son socias",
+  "accent": "green",
+  "seed": 4,
+  "nodes": [
+    { "id": "map", "label": "Panel de captación", "device": "desktop", "url": "asociacion-forestal.org/captacion", "components": [
+      { "type": "header", "text": "Captación · Comarca del Solsonès", "back": false, "action": "Exportar" },
+      { "type": "chips", "items": ["Todas", "Sin contactar", "En seguimiento", "Socias"], "selected": ["Sin contactar"], "color": "green" },
+      { "type": "image", "label": "Mapa: fincas socias en verde, colindantes sin contactar en naranja", "h": 220, "color": "green", "highlight": true },
+      { "type": "card", "title": "Parcela 25-114-0032 · 3,4 ha", "text": "Linda con 2 socios · Titular: herederos de J. Puig", "color": "orange" },
+      { "type": "list", "items": ["Embajador sugerido: Marta Vila (finca vecina)", "Último contacto: nunca", "Riesgo de incendio: alto"], "color": "violet" },
+      { "type": "spacer", "flex": true },
+      { "id": "cta", "type": "button", "text": "Asignar a embajador" },
+      { "type": "button", "variant": "secondary", "text": "Generar carta de presentación" }
+    ]}
+  ],
+  "edges": []
+}

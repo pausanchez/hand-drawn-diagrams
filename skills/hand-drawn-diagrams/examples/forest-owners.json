@@ -1,0 +1,43 @@
+{
+  "title": "Sistema de captación de propietarios forestales",
+  "subtitle": "Cómo una Asociación de Propietarios suma las pequeñas fincas que lindan con las de sus socios",
+  "direction": "RIGHT",
+  "spacing": 1.15,
+  "seed": 11,
+  "nodes": [
+    { "id": "start", "kind": "start", "label": "Finca de un socio" },
+    { "id": "detect", "label": "Detectar fincas colindantes", "sub": "catastro + mapa SIG", "color": "green" },
+    { "id": "owners", "label": "Identificar titulares", "sub": "catastro, registro, ayuntamiento", "color": "orange" },
+    { "id": "ambassador", "label": "Vecino embajador", "sub": "el socio presenta la idea", "color": "blue" },
+    { "id": "visit", "label": "Charla en el pueblo", "sub": "o visita a la finca", "color": "blue" },
+    { "id": "diag", "label": "Diagnóstico gratis", "sub": "valor, riesgo de incendio, ayudas", "color": "green" },
+    { "id": "join", "kind": "diamond", "label": "¿Se une?", "color": "yellow" },
+    { "id": "member", "label": "Alta como socio", "sub": "gestión agrupada", "color": "green" },
+    { "id": "value", "label": "Beneficios visibles", "sub": "venta conjunta, subvenciones, limpieza", "color": "green" },
+    { "id": "end", "kind": "end", "label": "Nuevo embajador" },
+    { "id": "nurture", "label": "Seguimiento", "sub": "boletín, invitación en 6 meses", "color": "red" },
+    { "id": "n1", "kind": "note", "label": "Muchas fincas pequeñas tienen dueños desconocidos o herederos dispersos" },
+    { "id": "n2", "kind": "note", "label": "Clave: confianza de vecino a vecino, no publicidad" }
+  ],
+  "groups": [
+    { "id": "g1", "label": "1 · Detectar", "children": ["detect", "owners"], "color": "gray" },
+    { "id": "g2", "label": "2 · Acercar", "children": ["ambassador", "visit", "diag"], "color": "gray" },
+    { "id": "g3", "label": "3 · Retener y crecer", "children": ["member", "value"], "color": "gray" }
+  ],
+  "edges": [
+    { "from": "start", "to": "detect" },
+    { "from": "detect", "to": "owners" },
+    { "from": "owners", "to": "ambassador" },
+    { "from": "ambassador", "to": "visit" },
+    { "from": "visit", "to": "diag" },
+    { "from": "diag", "to": "join" },
+    { "from": "join", "to": "member", "label": "sí" },
+    { "from": "member", "to": "value" },
+    { "from": "value", "to": "end" },
+    { "from": "join", "to": "nurture", "label": "aún no", "color": "red" },
+    { "from": "nurture", "to": "ambassador", "color": "red", "dashed": true, "label": "reintentar" },
+    { "from": "end", "to": "detect", "dashed": true, "color": "green", "label": "efecto mancha de aceite" },
+    { "from": "n1", "to": "owners", "dashed": "dot", "arrow": false },
+    { "from": "n2", "to": "ambassador", "dashed": "dot", "arrow": false }
+  ]
+}

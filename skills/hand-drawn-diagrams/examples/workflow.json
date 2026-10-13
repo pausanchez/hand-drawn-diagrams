@@ -1,0 +1,28 @@
+{
+  "title": "Proceso de publicación de contenido",
+  "direction": "RIGHT",
+  "nodes": [
+    { "id": "start", "kind": "start", "label": "Idea" },
+    { "id": "draft", "label": "Redactar borrador", "color": "blue" },
+    { "id": "review", "label": "Revisión editorial", "sub": "máx. 48 h", "color": "violet" },
+    { "id": "ok", "kind": "diamond", "label": "¿Aprobado?", "color": "yellow" },
+    { "id": "legal", "label": "Revisión legal", "color": "orange" },
+    { "id": "schedule", "label": "Programar publicación", "color": "green" },
+    { "id": "publish", "kind": "end", "label": "Publicado" },
+    { "id": "n1", "kind": "note", "label": "Solo si menciona marcas o datos personales" }
+  ],
+  "groups": [
+    { "id": "writer", "label": "Redacción", "children": ["draft"] },
+    { "id": "editorial", "label": "Equipo editorial", "children": ["review", "ok", "legal"], "color": "gray" }
+  ],
+  "edges": [
+    { "from": "start", "to": "draft" },
+    { "from": "draft", "to": "review" },
+    { "from": "review", "to": "ok" },
+    { "from": "ok", "to": "legal", "label": "sí" },
+    { "from": "ok", "to": "draft", "label": "cambios", "color": "red", "dashed": true },
+    { "from": "legal", "to": "schedule" },
+    { "from": "schedule", "to": "publish" },
+    { "from": "n1", "to": "legal", "dashed": "dot", "arrow": false }
+  ]
+}

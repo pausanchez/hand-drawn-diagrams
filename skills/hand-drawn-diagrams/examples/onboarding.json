@@ -1,0 +1,88 @@
+{
+  "title": "Onboarding · app de hábitos",
+  "subtitle": "Del primer arranque a la home, con verificación de email y login para usuarios existentes",
+  "direction": "RIGHT",
+  "accent": "blue",
+  "nodes": [
+    { "id": "welcome", "label": "Bienvenida", "step": 1, "components": [
+      { "type": "spacer", "h": 8 },
+      { "type": "image", "label": "Ilustración: persona regando una planta", "h": 170, "color": "green" },
+      { "type": "progress", "step": 1, "total": 3 },
+      { "type": "title", "text": "Pequeños hábitos, grandes cambios" },
+      { "type": "text", "text": "Construye rutinas que de verdad se quedan, un día cada vez." },
+      { "type": "spacer", "flex": true },
+      { "id": "cta", "type": "button", "text": "Empezar" },
+      { "id": "login", "type": "button", "variant": "link", "text": "Ya tengo cuenta" }
+    ]},
+    { "id": "signup", "label": "Crear cuenta", "step": 2, "components": [
+      { "type": "header", "text": "Crear cuenta" },
+      { "type": "input", "label": "Nombre", "placeholder": "Laura" },
+      { "type": "input", "label": "Email", "placeholder": "tu@email.com" },
+      { "type": "input", "label": "Contraseña", "placeholder": "••••••••", "icon": "eye" },
+      { "type": "checkbox", "text": "Acepto los términos y la política de privacidad", "checked": true },
+      { "id": "cta", "type": "button", "text": "Crear cuenta" },
+      { "type": "divider", "text": "o" },
+      { "type": "social", "items": ["Google", "Apple"] }
+    ]},
+    { "id": "verify", "label": "Verificar email", "step": 3, "components": [
+      { "type": "header", "text": "" },
+      { "type": "image", "label": "Sobre con check", "h": 110, "w": 150, "color": "blue" },
+      { "type": "title", "text": "Revisa tu correo" },
+      { "type": "text", "text": "Te enviamos un código de 6 dígitos a tu@email.com" },
+      { "type": "otp", "count": 6, "value": "482" },
+      { "type": "spacer", "flex": true },
+      { "id": "cta", "type": "button", "text": "Verificar" },
+      { "type": "button", "variant": "link", "text": "Reenviar código" }
+    ]},
+    { "id": "valid", "kind": "diamond", "label": "¿Código válido?", "color": "yellow" },
+    { "id": "interests", "label": "Elige tus intereses", "step": 4, "components": [
+      { "type": "header", "text": "", "action": "Saltar" },
+      { "type": "progress", "step": 2, "total": 3, "style": "bar" },
+      { "type": "title", "text": "¿Qué quieres mejorar?", "align": "left" },
+      { "type": "text", "text": "Elige al menos 2. Lo usaremos para sugerirte hábitos.", "align": "left" },
+      { "type": "chips", "items": ["Dormir mejor", "Ejercicio", "Leer", "Meditar", "Hidratación", "Foco", "Finanzas", "Cocinar"], "selected": ["Dormir mejor", "Leer", "Meditar"] },
+      { "type": "spacer", "flex": true },
+      { "id": "cta", "type": "button", "text": "Continuar (3)" }
+    ]},
+    { "id": "notifications", "label": "Permiso de notificaciones", "step": 5, "components": [
+      { "type": "header", "text": "", "action": "Ahora no" },
+      { "type": "progress", "step": 3, "total": 3, "style": "bar" },
+      { "type": "image", "label": "Campana con recordatorio", "h": 130, "color": "orange" },
+      { "type": "title", "text": "Te recordamos tus hábitos" },
+      { "type": "text", "text": "Un aviso a la hora que elijas. Nada de spam." },
+      { "type": "toggle", "text": "Recordatorio diario · 8:00", "on": true },
+      { "type": "spacer", "flex": true },
+      { "id": "cta", "type": "button", "text": "Activar notificaciones", "highlight": true }
+    ]},
+    { "id": "home", "label": "Home (primer día)", "step": 6, "components": [
+      { "type": "title", "text": "¡Hola, Laura!", "align": "left", "size": 19 },
+      { "type": "card", "title": "Tu plan de hoy", "text": "3 hábitos · 15 min en total", "color": "green" },
+      { "type": "list", "items": ["Leer 10 páginas", "Meditar 5 min", "Dormir antes de 23:30"], "color": "violet" },
+      { "type": "spacer", "flex": true },
+      { "type": "tabs", "items": ["Hoy", "Progreso", "Perfil"], "active": 0 }
+    ]},
+    { "id": "signin", "label": "Iniciar sesión", "step": "2b", "components": [
+      { "type": "header", "text": "Iniciar sesión" },
+      { "type": "input", "label": "Email", "value": "laura@email.com" },
+      { "type": "input", "label": "Contraseña", "placeholder": "••••••••", "icon": "eye" },
+      { "type": "button", "variant": "link", "text": "¿Olvidaste tu contraseña?" },
+      { "type": "spacer", "flex": true },
+      { "id": "cta", "type": "button", "text": "Entrar" },
+      { "type": "divider", "text": "o" },
+      { "type": "social", "items": ["Google", "Apple"] }
+    ]},
+    { "id": "note1", "kind": "note", "label": "Si el usuario entra con Google/Apple, saltamos la verificación de email" }
+  ],
+  "edges": [
+    { "from": "welcome#cta", "to": "signup" },
+    { "from": "welcome#login", "to": "signin", "dashed": true, "label": "ya tiene cuenta" },
+    { "from": "signup#cta", "to": "verify" },
+    { "from": "verify#cta", "to": "valid" },
+    { "from": "valid", "to": "interests", "label": "sí" },
+    { "from": "valid", "to": "verify", "label": "no · mostrar error", "color": "red" },
+    { "from": "interests#cta", "to": "notifications" },
+    { "from": "notifications#cta", "to": "home" },
+    { "from": "signin#cta", "to": "home", "dashed": true },
+    { "from": "note1", "to": "signup", "dashed": "dot", "arrow": false }
+  ]
+}
