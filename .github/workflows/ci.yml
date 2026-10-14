@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Validate plugin and marketplace manifests
+        run: npx -y @anthropic-ai/claude-code plugin validate .
+
+      - name: Check the prebuilt bundle matches src/
+        working-directory: skills/hand-drawn-diagrams
+        run: |
+          npm ci
+          npm run check-build
+
+      # Render from a copy with no node_modules, exactly as a user gets it after installing the plugin.
+      - name: Render all examples from a clean copy
+        run: |
+          mkdir -p "$RUNNER_TEMP/clean"
+          git archive HEAD skills/hand-drawn-diagrams | tar -x -C "$RUNNER_TEMP/clean"
+          SK="$RUNNER_TEMP/clean/skills/hand-drawn-diagrams"
+          test ! -e "$SK/node_modules"
+          mkdir -p out
+          fail=0
+          for spec in "$SK"/examples/*.json; do
+            name=$(basename "$spec" .json)
+            log=$(node "$SK/scripts/render.mjs" "$spec" --out "out/$name" 2>&1) || fail=1
+            echo "$log"
+            if echo "$log" | grep -qE '^Warnings:|PNG skipped'; then echo "::error::$name produced warnings or no PNG"; fail=1; fi
+            test -s "out/$name.png" || { echo "::error::$name.png missing"; fail=1; }
+          done
+          exit $fail
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rendered-examples
+          path: out/

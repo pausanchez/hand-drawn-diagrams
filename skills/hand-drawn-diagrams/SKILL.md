@@ -9,16 +9,11 @@ Renders a JSON spec into an SVG (and PNG) that looks sketched on a whiteboard:
 rough.js strokes, hachure fills, a handwritten font, automatic layout with ELK.
 You never compute coordinates — you describe nodes, screens and edges; the script lays them out.
 
-## Setup (only when dependencies are missing)
+## Setup
 
-```bash
-cd <skill-dir> && [ -d node_modules ] || npm install   # roughjs, elkjs, opentype.js (+ playwright, optional, for PNG)
-```
-Check for `node_modules` first and install only if it's missing. When the skill is installed as a
-plugin, its folder is replaced on every update, so dependencies may need reinstalling after an upgrade.
-
-PNG export needs Playwright with a Chromium browser. If it's missing the script still writes the SVG
-and prints "PNG skipped"; run `npx playwright install chromium` once to enable PNG output.
+None. `scripts/render.mjs` is a prebuilt bundle with every dependency inside, and PNG export uses
+WebAssembly (`scripts/resvg.wasm`), so it runs with plain Node 18+: no `npm install`, no browser.
+Don't run `npm install` in the skill folder; that's only for developing the renderer (see `src/`).
 
 ## Workflow
 
@@ -46,7 +41,8 @@ Mixing is fine: screens plus a `diamond` for a decision plus a `note`, as in `ex
 
 ## Rules that keep diagrams clean
 
-- **List nodes in flow order.** Layout follows model order; the main path first, branches after.
+- **List nodes in flow order.** Layout follows model order where that doesn't add edge crossings; main path first, branches after.
+  If a reorder has no effect, ELK is avoiding a crossing: change `direction` or the edges instead.
 - **Edges from buttons** need an `id` on that component (`{"id": "cta", "type": "button", ...}`) and
   `"from": "screen#cta"`. They start with a red dot on the button, like a prototype link.
   The target screen is entered at the same height, so a linear flow comes out as a straight row.

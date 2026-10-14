@@ -24,3 +24,7 @@ SOFTWARE.
 The bundled fonts in skills/hand-drawn-diagrams/assets/fonts (Kalam, Caveat)
 are licensed separately under the SIL Open Font License 1.1 — see the
 LICENSE.md file in that folder.
+
+The prebuilt renderer (skills/hand-drawn-diagrams/scripts/render.mjs and
+resvg.wasm) bundles third-party libraries under their own licences (MIT,
+EPL-2.0, MPL-2.0); see skills/hand-drawn-diagrams/scripts/THIRD_PARTY_NOTICES.md.

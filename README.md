@@ -49,8 +49,6 @@ Ejecuta estos dos comandos **por separado**, uno detrás de otro. Si los pegas j
    /plugin install hand-drawn-diagrams@pausanchez
    ```
 
-Para exportar a PNG, ejecuta una vez `npx playwright install chromium`.
-
 ### Claude.ai / app de Claude
 1. Descarga la carpeta [`skills/hand-drawn-diagrams`](skills/hand-drawn-diagrams) y comprímela en un `.zip`. Puedes usar *Code → Download ZIP* y quedarte solo con esa carpeta.
 2. Ve a **Ajustes → Capacidades → Skills** y sube el zip.
@@ -58,7 +56,7 @@ Para exportar a PNG, ejecuta una vez `npx playwright install chromium`.
 ### A mano
 Copia `skills/hand-drawn-diagrams` en `~/.claude/skills/`.
 
-La primera vez que se usa, o después de una actualización, Claude ejecuta `npm install` dentro de la carpeta de la skill si faltan dependencias. Para exportar a PNG hace falta Playwright con Chromium; sin él, la skill genera igualmente el SVG.
+**No hace falta instalar nada más.** Solo necesitas Node 18 o superior. Las dependencias van empaquetadas en la skill y el PNG se genera con WebAssembly, sin navegador, así que funciona igual en Mac, Windows y Linux.
 
 ## Uso
 
@@ -71,8 +69,7 @@ Pídeselo a Claude con naturalidad:
 También puedes renderizar una especificación directamente:
 
 ```bash
-cd skills/hand-drawn-diagrams && npm install
-node scripts/render.mjs examples/workflow.json --out out/workflow
+node skills/hand-drawn-diagrams/scripts/render.mjs mi-diagrama.json --out out/mi-diagrama
 ```
 
 Toda la referencia del formato está en [`reference/spec-format.md`](skills/hand-drawn-diagrams/reference/spec-format.md). Los criterios de color y maquetación están en [`reference/style-guide.md`](skills/hand-drawn-diagrams/reference/style-guide.md).
@@ -88,10 +85,23 @@ Toda la referencia del formato está en [`reference/spec-format.md`](skills/hand
 
 Estilo configurable: fuente (Kalam o Caveat), rugosidad, tipo de relleno, color de acento y semilla.
 
+## Desarrollo
+
+El código fuente del renderizador está en `skills/hand-drawn-diagrams/src/render.mjs`. `scripts/render.mjs` es un bundle generado a partir de él: no lo edites a mano.
+
+```bash
+cd skills/hand-drawn-diagrams
+npm install          # solo para desarrollar: esbuild, roughjs, elkjs, opentype.js, resvg-wasm
+npm run build        # regenera scripts/render.mjs y scripts/resvg.wasm
+npm run examples     # renderiza los 4 ejemplos en out/
+```
+
+En cada push y cada PR, la CI valida el plugin, comprueba que el bundle está al día y renderiza los ejemplos desde una copia limpia, sin `node_modules`. Antes de publicar una versión, súbela en `.claude-plugin/plugin.json` y `marketplace.json`: así les llega la actualización a quienes ya tienen el plugin instalado.
+
 ## Créditos
 
 Creada por [Pau Sánchez](https://github.com/pausanchez) con la ayuda de Claude.
-Usa [rough.js](https://roughjs.com), [ELK.js](https://github.com/kieler/elkjs) y [opentype.js](https://opentype.js.org), y las fuentes Kalam y Caveat (SIL OFL 1.1).
+Usa [rough.js](https://roughjs.com), [ELK.js](https://github.com/kieler/elkjs), [opentype.js](https://opentype.js.org) y [resvg](https://github.com/linebender/resvg), y las fuentes Kalam y Caveat (SIL OFL 1.1).
 
 ## Licencia
 
