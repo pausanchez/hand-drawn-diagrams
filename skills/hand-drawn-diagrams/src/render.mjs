@@ -571,8 +571,89 @@ const graph = {
   edges: elkEdges,
 };
 
-const elk = new ELK();
-const laid = await elk.layout(graph);
+// ---------- board layout: groups as columns (or rows), nodes in listed order, no ELK ----------
+// Returns the same shape ELK does (absolute coords), so the drawing code below is shared.
+function boardLayout() {
+  const rowsMode = dir === 'DOWN' || dir === 'UP';
+  const gapItem = Math.round(22 * spacing), gapLane = Math.round(40 * spacing);
+  const lanes = groups.map((g) => ({ g, items: (g.children || []).map((id) => byId.get(id)).filter(Boolean) }));
+  const loose = nodes.filter((n) => !grouped.has(n.id));
+  if (loose.length) lanes.push({ g: null, items: loose });
+  if (dir === 'LEFT' || dir === 'UP') lanes.reverse();
+  const STRETCH = new Set(['box', 'note', 'pill', 'start', 'end', 'text']);
+  const pad = (l) => ({ top: l.g ? (l.g.label ? 52 : 28) : 0, side: l.g ? 28 : 0, bottom: l.g ? 28 : 0 });
+  const children = [], P = new Map();
+  let cursor = 0;
+  // inner size along the cross axis: column width / row height
+  // columns: one shared width (widest card, or spec.columnWidth) so the board reads as a grid
+  const colW = spec.columnWidth ?? Math.max(180, ...lanes.flatMap((l) => l.items.filter((n) => n.kind !== 'screen').map((n) => n._w)));
+  for (const l of lanes) {
+    if (!rowsMode) {
+      l.inner = Math.max(colW, ...l.items.map((n) => n._w));
+      for (const n of l.items) if (STRETCH.has(n.kind) && n.width == null) {
+        // re-measure at the stretched width so the text uses the room (fewer wrapped lines)
+        const [, h] = nodeSize({ ...n, width: l.inner, height: n.height });
+        n._w = l.inner; n._h = h;
+      }
+      l.len = l.items.reduce((s, n) => s + n._h, 0) + gapItem * Math.max(0, l.items.length - 1);
+    } else {
+      l.inner = Math.max(40, ...l.items.map((n) => n._h));
+      l.len = l.items.reduce((s, n) => s + n._w, 0) + gapItem * Math.max(0, l.items.length - 1);
+    }
+  }
+  const maxLen = Math.max(0, ...lanes.map((l) => l.len));
+  for (const l of lanes) {
+    const p = pad(l);
+    const box = rowsMode
+      ? { x: 0, y: cursor, width: p.side * 2 + maxLen, height: p.top + l.inner + p.bottom }
+      : { x: cursor, y: 0, width: p.side * 2 + l.inner, height: p.top + maxLen + p.bottom };
+    let along = rowsMode ? p.side : p.top;
+    for (const n of l.items) {
+      const r = rowsMode
+        ? { id: n.id, x: box.x + along, y: box.y + p.top + (l.inner - n._h) / 2, width: n._w, height: n._h }
+        : { id: n.id, x: box.x + p.side + (l.inner - n._w) / 2, y: box.y + along, width: n._w, height: n._h };
+      along += (rowsMode ? n._w : n._h) + gapItem;
+      P.set(n.id, { ...r, lane: l, idx: l.items.indexOf(n) });
+      if (!l.g) children.push(r);
+    }
+    if (l.g) children.push({ id: `group:${l.g.id}`, ...box, children: l.items.map((n) => { const { lane, idx, ...r } = P.get(n.id); return r; }) });
+    l.box = box;
+    cursor += (rowsMode ? box.height : box.width) + gapLane;
+  }
+  // simple orthogonal edges
+  const laidE = edges.map((e) => {
+    const a = P.get(e._from.node), b = P.get(e._to.node);
+    let sy = a.y + a.height / 2;
+    if (e._from.port) { const q = elkNodes.get(a.id).ports?.find((q) => q.id === e._from.port); if (q) sy = a.y + q.y; }
+    const ac = { x: a.x + a.width / 2, y: sy }, bc = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    let pts;
+    const sameLane = a.lane === b.lane;
+    if (sameLane && Math.abs(a.idx - b.idx) > 1) {
+      // detour outside the lane so the line doesn't cross the nodes in between
+      if (!rowsMode) { const x = a.lane.box.x + a.lane.box.width + 10; pts = [[a.x + a.width, ac.y], [x, ac.y], [x, bc.y], [b.x + b.width, bc.y]]; }
+      else { const y = a.lane.box.y + a.lane.box.height + 10; pts = [[ac.x, a.y + a.height], [ac.x, y], [bc.x, y], [bc.x, b.y + b.height]]; }
+    } else if (b.x >= a.x + a.width || a.x >= b.x + b.width) {
+      const fwd = b.x >= a.x + a.width, sx = fwd ? a.x + a.width : a.x, tx = fwd ? b.x : b.x + b.width, mx = (sx + tx) / 2;
+      pts = [[sx, ac.y], [mx, ac.y], [mx, bc.y], [tx, bc.y]];
+    } else {
+      const fwd = b.y >= a.y + a.height, sy2 = fwd ? a.y + a.height : a.y, ty = fwd ? b.y : b.y + b.height, my = (sy2 + ty) / 2;
+      pts = [[ac.x, sy2], [ac.x, my], [bc.x, my], [bc.x, ty]];
+    }
+    const P_ = pts.map(([x, y]) => ({ x, y }));
+    const out = { id: e._id, sections: [{ startPoint: P_[0], bendPoints: P_.slice(1, -1), endPoint: P_.at(-1) }], labels: [] };
+    if (e.label) {
+      const d = labelDims(e.label), m1 = P_[1], m2 = P_[2];
+      out.labels.push({ ...d, x: (m1.x + m2.x) / 2 - d.width / 2, y: (m1.y + m2.y) / 2 - d.height / 2 });
+    }
+    return out;
+  });
+  const all = [...lanes.map((l) => l.box)];
+  return { width: Math.max(0, ...all.map((b) => b.x + b.width)) + 12, height: Math.max(0, ...all.map((b) => b.y + b.height)) + 12, children, edges: laidE };
+}
+
+const board = String(spec.layout || '').toLowerCase() === 'board';
+if (spec.layout && !board) warn(`Unknown layout "${spec.layout}" (use "board" or leave it out)`);
+const laid = board ? boardLayout() : await new ELK().layout(graph);
 
 // ---------- collect absolute positions ----------
 const pos = new Map();

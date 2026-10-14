@@ -28,6 +28,12 @@ Un proceso editorial con un grupo por equipo y un bucle de "cambios".
 ![Workflow](skills/hand-drawn-diagrams/examples/workflow.png)
 → [`workflow.json`](skills/hand-drawn-diagrams/examples/workflow.json)
 
+### Tablero (kanban / estado)
+Con `"layout": "board"`, cada grupo es una columna y las tarjetas salen en el orden en que las listas, sin necesidad de flechas. Sirve para un kanban, el estado de un proyecto o una comparativa por columnas.
+
+![Tablero](skills/hand-drawn-diagrams/examples/board.png)
+→ [`board.json`](skills/hand-drawn-diagrams/examples/board.json)
+
 ### Wireframe de escritorio
 Una sola pantalla con navegador, filtros, mapa destacado, ficha y botones de acción.
 
@@ -82,6 +88,7 @@ Toda la referencia del formato está en [`reference/spec-format.md`](skills/hand
 | Swimlanes y fases | grupos con borde discontinuo, coloreables |
 | Flujos de pantallas | móvil, tablet o escritorio con componentes (inputs, botones, chips, listas, tarjetas, OTP…) y flechas que salen de los botones |
 | Wireframes | una sola pantalla con texto realista |
+| Tableros | columnas (o filas) de tarjetas en orden, tipo kanban o tablero de estado |
 
 Estilo configurable: fuente (Kalam o Caveat), rugosidad, tipo de relleno, color de acento y semilla.
 
@@ -93,7 +100,7 @@ El código fuente del renderizador está en `skills/hand-drawn-diagrams/src/rend
 cd skills/hand-drawn-diagrams
 npm install          # solo para desarrollar: esbuild, roughjs, elkjs, opentype.js, resvg-wasm
 npm run build        # regenera scripts/render.mjs y scripts/resvg.wasm
-npm run examples     # renderiza los 4 ejemplos en out/
+npm run examples     # renderiza los ejemplos en out/
 ```
 
 En cada push y cada PR, la CI valida el plugin, comprueba que el bundle está al día y renderiza los ejemplos desde una copia limpia, sin `node_modules`. Antes de publicar una versión, súbela en `.claude-plugin/plugin.json` y `marketplace.json`: así les llega la actualización a quienes ya tienen el plugin instalado.

@@ -1,6 +1,6 @@
 ---
 name: hand-drawn-diagrams
-description: Draw flowcharts, workflows, screen flows, wireframes and prototypes in a sketchy hand-drawn whiteboard style (rough lines, hachure fills, handwritten font) as SVG and PNG. Use when the user asks for a flow, workflow, user flow, onboarding flow, wireframe, prototype or process diagram that should look hand-drawn, sketched, or "whiteboard style".
+description: Draw flowcharts, workflows, screen flows, wireframes, prototypes and kanban/status boards in a sketchy hand-drawn whiteboard style (rough lines, hachure fills, handwritten font) as SVG and PNG. Use when the user asks for a flow, workflow, user flow, onboarding flow, wireframe, prototype, process diagram or board of cards in columns that should look hand-drawn, sketched, or "whiteboard style".
 ---
 
 # Hand-drawn diagrams
@@ -18,7 +18,7 @@ Don't run `npm install` in the skill folder; that's only for developing the rend
 ## Workflow
 
 1. **Decide the diagram type** (see below) and write a spec JSON in the working directory.
-   Read `reference/spec-format.md` for every field and component. `examples/` has four complete specs (process, screen flow, swimlanes, wireframe).
+   Read `reference/spec-format.md` for every field and component. `examples/` has five complete specs (process, screen flow, swimlanes, wireframe, board).
 2. **Render**: `node <skill-dir>/scripts/render.mjs spec.json --out out/name`
    → `out/name.svg` + `out/name.png` (2x). Flags: `--no-png`, `--scale 3`.
 3. **Read the warnings** the script prints (unknown component, missing component id, word too long) and fix them.
@@ -36,6 +36,7 @@ Don't run `npm install` in the skill folder; that's only for developing the rend
 | Swimlanes / ownership | wrap nodes in `groups` (one per team/actor); add `color` to tint a lane |
 | Screen flow / onboarding / prototype | `screen` nodes with `components`; edges from a button: `"from": "screenId#componentId"` |
 | Single wireframe | one `screen` node, no edges (use `device: "desktop"` for web) |
+| Board / kanban / status columns / comparison | `"layout": "board"` + one group per column; no edges needed (see spec-format.md) |
 
 Mixing is fine: screens plus a `diamond` for a decision plus a `note`, as in `examples/onboarding.json`.
 

@@ -1,0 +1,26 @@
+{
+  "title": "Tablero de captación · Solsonès",
+  "subtitle": "Estado de las fincas colindantes, una columna por fase (layout: board)",
+  "layout": "board",
+  "seed": 9,
+  "nodes": [
+    { "id": "p1", "label": "Parcela 25-114-0032", "sub": "3,4 ha · herederos de J. Puig", "color": "orange" },
+    { "id": "p2", "label": "Parcela 25-114-0040", "sub": "1,2 ha · titular desconocido", "color": "orange" },
+    { "id": "p3", "label": "Parcela 25-117-0008", "sub": "6,0 ha · vive en Barcelona", "color": "orange" },
+    { "id": "p4", "label": "Parcela 25-114-0051", "sub": "2,1 ha · embajadora: Marta Vila", "color": "blue" },
+    { "id": "p5", "label": "Parcela 25-117-0013", "sub": "0,8 ha · charla del 18/10", "color": "blue" },
+    { "id": "p6", "label": "Parcela 25-114-0029", "sub": "4,5 ha · riesgo de incendio alto", "color": "violet" },
+    { "id": "p7", "label": "Parcela 25-114-0017", "sub": "5,2 ha · alta 02/10", "color": "green" },
+    { "id": "p8", "label": "Parcela 25-117-0002", "sub": "1,9 ha · alta 09/10", "color": "green" },
+    { "id": "n1", "kind": "note", "label": "Buscar herederos en el registro antes de escribir" }
+  ],
+  "groups": [
+    { "id": "todo", "label": "Sin contactar (3)", "children": ["p1", "p2", "p3", "n1"], "color": "gray" },
+    { "id": "contact", "label": "Contactado (2)", "children": ["p4", "p5"], "color": "gray" },
+    { "id": "diag", "label": "Diagnóstico (1)", "children": ["p6"], "color": "gray" },
+    { "id": "member", "label": "Socio (2)", "children": ["p7", "p8"], "color": "gray" }
+  ],
+  "edges": [
+    { "from": "p4", "to": "p6", "label": "visita", "dashed": true }
+  ]
+}
