@@ -82,6 +82,22 @@ const wantPng = !args.includes('--no-png');
 const scale = Number(argVal('--scale', 2));
 
 const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
+
+// The handwritten fonts only cover Latin letters and common punctuation. resvg has no fallback font,
+// so a missing glyph becomes a box. Swap the usual symbols for look-alikes the font does have.
+const GLYPH_SUBS = {
+  '→': '->', '⟶': '->', '➔': '->', '➜': '->', '➝': '->', '←': '<-', '⟵': '<-', '↔': '<->', '⟷': '<->',
+  '⇒': '=>', '⟹': '=>', '⇐': '<=', '⇔': '<=>',
+  '✓': 'ok', '✔': 'ok', '☑': 'ok', '✅': 'ok', '✗': '×', '✘': '×', '❌': '×', '●': '•', '⦁': '•',
+};
+const GLYPH_RE = new RegExp(`[${Object.keys(GLYPH_SUBS).join('')}]`, 'gu');
+const substituted = new Set();
+(function subStrings(o) {
+  for (const k in o) {
+    if (typeof o[k] === 'string') o[k] = o[k].replace(GLYPH_RE, (c) => (substituted.add(`"${c}" with "${GLYPH_SUBS[c]}"`), GLYPH_SUBS[c]));
+    else if (o[k] && typeof o[k] === 'object') subStrings(o[k]);
+  }
+})(spec);
 const warnings = [];
 const warn = (m) => warnings.push(m);
 
@@ -92,7 +108,15 @@ const fontRegular = loadFont(FONT.regular);
 const fontBold = loadFont(FONT.bold);
 const fs_ = (s) => s * FONT.scale; // font-size scaling per family
 
+function checkGlyphs(str, bold = false) {
+  const font = bold ? fontBold : fontRegular;
+  for (const ch of String(str ?? '')) {
+    if (/\s/.test(ch) || font.charToGlyphIndex(ch)) continue;
+    warn(`Character "${ch}" (U+${ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}) is not in font ${FONT.family}: it renders as a box. Replace it with plain text (e.g. "->", "ok").`);
+  }
+}
 function measure(str, size, bold = false) {
+  checkGlyphs(str, bold);
   return (bold ? fontBold : fontRegular).getAdvanceWidth(String(str), fs_(size));
 }
 function wrap(str, size, maxW, bold = false) {
@@ -168,6 +192,7 @@ const D = {
   text(x, y, str, o = {}) {
     // y = top of the text block. Returns block height.
     const size = o.size ?? 16, bold = !!o.bold, anchor = o.anchor ?? 'middle';
+    checkGlyphs(str, bold);
     const lines = o.maxW ? wrap(str, size, o.maxW, bold) : String(str).split('\n');
     const lh = lineH(size);
     lines.forEach((ln, i) => {
@@ -741,4 +766,5 @@ if (wantPng) {
     console.log(`PNG skipped (${String(err?.message ?? err).split('\n')[0]})`);
   }
 }
+if (substituted.size) console.log(`Note: replaced symbols the font lacks: ${[...substituted].join(', ')}`);
 if (warnings.length) { console.log('\nWarnings:'); for (const w of [...new Set(warnings)]) console.log('  - ' + w); }

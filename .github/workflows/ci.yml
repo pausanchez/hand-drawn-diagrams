@@ -42,6 +42,15 @@ jobs:
           done
           exit $fail
 
+      # Symbols the handwritten font lacks must never fail silently (they render as boxes in the PNG).
+      - name: Missing glyphs are replaced or reported
+        run: |
+          log=$(node skills/hand-drawn-diagrams/scripts/render.mjs tests/missing-glyphs.json --out out/missing-glyphs 2>&1)
+          echo "$log"
+          echo "$log" | grep -q 'replaced symbols the font lacks: "→" with "->", "✓" with "ok"' || { echo "::error::→ / ✓ were not substituted"; exit 1; }
+          echo "$log" | grep -q 'Character "★"' || { echo "::error::no warning for ★"; exit 1; }
+          if grep -q '[→✓]' out/missing-glyphs.svg; then echo "::error::substituted symbols still in SVG"; exit 1; fi
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
