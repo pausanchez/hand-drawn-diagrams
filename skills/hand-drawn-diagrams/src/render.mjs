@@ -82,6 +82,8 @@ const wantPng = !args.includes('--no-png');
 const scale = Number(argVal('--scale', 2));
 
 const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
+const LAYOUT = String(spec.layout || '').toLowerCase();
+const isMap = LAYOUT === 'map';
 
 // The handwritten fonts only cover Latin letters and common punctuation. resvg has no fallback font,
 // so a missing glyph becomes a box. Swap the usual symbols for look-alikes the font does have.
@@ -201,7 +203,8 @@ const D = {
     lines.forEach((ln, i) => {
       const by = y + i * lh + fs_(size) * 0.95;
       const deco = o.underline ? ' text-decoration="underline"' : '';
-      svgParts.push(`<text x="${x}" y="${by.toFixed(1)}" font-size="${fs_(size).toFixed(1)}" text-anchor="${anchor}" fill="${o.color ?? INK}"${bold ? ' font-weight="700"' : ''}${deco}>${esc(ln)}</text>`);
+      const halo = o.halo ? ` stroke="${o.halo === true ? (spec.background && spec.background !== 'transparent' ? spec.background : '#ffffff') : o.halo}" stroke-width="5" stroke-linejoin="round" paint-order="stroke"` : '';
+      svgParts.push(`<text x="${x}" y="${by.toFixed(1)}" font-size="${fs_(size).toFixed(1)}" text-anchor="${anchor}" fill="${o.color ?? INK}"${bold ? ' font-weight="700"' : ''}${deco}${halo}>${esc(ln)}</text>`);
     });
     return lines.length * lh;
   },
@@ -489,7 +492,7 @@ for (const n of nodes) {
   n._w = w; n._h = h;
   elkNodes.set(n.id, { id: n.id, width: w, height: h });
 }
-const edges = (spec.edges || []).map((e, i) => ({ ...e, _id: `e${i}`, _from: resolveEnd(e.from, 'from'), _to: resolveEnd(e.to, 'to') })).filter((e) => e._from && e._to);
+const edges = (isMap ? [] : (spec.edges || [])).map((e, i) => ({ ...e, _id: `e${i}`, _from: resolveEnd(e.from, 'from'), _to: resolveEnd(e.to, 'to') })).filter((e) => e._from && e._to);
 
 // component ports
 for (const [nid, parts] of portsByNode) {
@@ -571,6 +574,265 @@ const graph = {
   edges: elkEdges,
 };
 
+// ---------- map layout: things placed by coordinates (lon/lat or plain x/y) ----------
+// Strong tones for lines, arrows and map labels (fills keep the pastel PALETTE).
+const STRONG = { blue: '#1c7ed6', green: '#2b8a3e', yellow: '#e67700', red: '#c92a2a', violet: '#7048e8', orange: '#e8590c', pink: '#c2255c', teal: '#0c8599', gray: '#495057', black: INK };
+const strongOf = (c) => (c ? STRONG[c] ?? c : INK);
+const MAP = (() => {
+  if (!isMap) return null;
+  const m = spec.map || {};
+  let b = m.bounds;
+  if (!Array.isArray(b) || b.length !== 4) {
+    warn('Map layout needs "map": { "bounds": [west, south, east, north] }');
+    b = [0, 0, 100, 100];
+  }
+  const [west, south, east, north] = b.map(Number);
+  const geo = (m.projection ?? 'geo') !== 'plain';
+  const width = Number(m.width ?? 1400);
+  const kx = width / (east - west);
+  const ky = geo ? kx / Math.cos((((north + south) / 2) * Math.PI) / 180) : kx;
+  const height = (north - south) * ky;
+  return { west, south, east, north, width, height, kx, ky, cfg: m };
+})();
+// map coords -> canvas px (absolute: includes the OX/OY margins once they exist)
+const mp = (pt) => [OX + (pt[0] - MAP.west) * MAP.kx, OY + (MAP.north - pt[1]) * MAP.ky];
+const isPt = (v) => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number');
+
+function mapLayout() {
+  for (const n of nodes) {
+    if (!isPt(n.at)) { warn(`Map node "${n.id}" needs "at": [lon, lat]`); continue; }
+    const [x, y] = n.at;
+    if (x < MAP.west || x > MAP.east || y < MAP.south || y > MAP.north) warn(`Map node "${n.id}" is outside map.bounds`);
+  }
+  return { width: MAP.width, height: MAP.height, children: [], edges: [] };
+}
+
+function drawMap() {
+  const X0 = OX, Y0 = OY, W = MAP.width, H = MAP.height, cfg = MAP.cfg;
+  const obstacles = [];  // rects {x,y,w,h} labels must avoid
+  const ink = [];        // [x, y, weight]: points of lines/arrows/outlines that labels should avoid
+  const sample = (pts, wgt = 1, step = 7) => { for (let i = 1; i < pts.length; i++) { const [a, b] = [pts[i - 1], pts[i]]; const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step)); for (let k = 0; k <= n; k++) ink.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n, wgt]); } };
+  // Catmull-Rom through the points: close to the curve rough.js draws, used for label avoidance
+  const spline = (pts, per = 14) => {
+    if (pts.length < 3) return pts;
+    const out = [], P_ = [pts[0], ...pts, pts.at(-1)];
+    for (let i = 1; i < P_.length - 2; i++) for (let k = 0; k < per; k++) {
+      const t = k / per, t2 = t * t, t3 = t2 * t, [p0, p1, p2, p3] = [P_[i - 1], P_[i], P_[i + 1], P_[i + 2]];
+      out.push([0, 1].map((j) => 0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3)));
+    }
+    out.push(pts.at(-1));
+    return out;
+  };
+  const labelsLater = [];
+
+  // frame + sea
+  const hasLand = Array.isArray(spec.land) && spec.land.length > 0;
+  const sea = cfg.sea ?? (hasLand ? 'blue' : false);
+  svgParts.push(`<clipPath id="mapclip"><rect x="${X0}" y="${Y0}" width="${W}" height="${H}"/></clipPath>`);
+  if (sea) {
+    const c = fillOf(sea);
+    svgParts.push(`<rect x="${X0}" y="${Y0}" width="${W}" height="${H}" fill="${tint(c, 0.35)}"/>`);
+    D.rect(X0, Y0, W, H, { stroke: 'none', fill: c, fillStyle: 'hachure', hachureGap: 14, hachureAngle: 0, fillWeight: 0.9, roughness: 0.6 });
+  }
+  svgParts.push('<g clip-path="url(#mapclip)">');
+
+  // land
+  for (const poly of hasLand ? spec.land : []) {
+    const pts = (poly.points ?? poly).filter(isPt).map(mp);
+    if (pts.length < 3) continue;
+    const color = poly.color ? fillOf(poly.color) : '#f4f1e6';
+    emit(gen.polygon(pts, opts({ stroke: INK, strokeWidth: 2.2, fill: color, fillStyle: 'solid', roughness: 0.7 })));
+    emit(gen.polygon(pts, opts({ stroke: 'none', fill: '#c9bf9a', fillStyle: 'hachure', hachureGap: 16, fillWeight: 0.7, roughness: 0.8 })));
+    sample([...pts, pts[0]], 0.25);
+  }
+
+  // areas (zones): polygon "points" or ellipse "center" + "size" [w, h] in px
+  for (const a of spec.areas || []) {
+    const col = a.color ?? 'green', stroke = strongOf(col);
+    const o = { stroke, strokeWidth: 2, fill: fillOf(col), fillStyle: a.fillStyle ?? 'cross-hatch', hachureGap: 10, fillWeight: 1, roughness: 1.1 };
+    let center;
+    if (isPt(a.center)) {
+      const [cx, cy] = mp(a.center), [w, h] = a.size ?? [160, 100];
+      if (a.fill === false) delete o.fill;
+      emit(gen.ellipse(cx, cy, w, h, opts(o)), { dashed: a.dashed ?? true });
+      sample(Array.from({ length: 41 }, (_, i) => [cx + (w / 2) * Math.cos((i / 40) * 2 * Math.PI), cy + (h / 2) * Math.sin((i / 40) * 2 * Math.PI)]), 0.5);
+      center = [cx, cy];
+    } else {
+      const pts = (a.points || []).filter(isPt).map(mp);
+      if (pts.length < 3) { warn(`Area "${a.label ?? '?'}" needs "points" (3+) or "center"`); continue; }
+      if (a.fill === false) delete o.fill;
+      emit(gen.polygon(pts, opts(o)), { dashed: a.dashed ?? true });
+      sample([...pts, pts[0]], 0.5);
+      center = [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+    }
+    if (isPt(a.labelAt)) center = mp(a.labelAt);
+    if (a.label) labelsLater.push({ kind: 'fixed', at: center, text: a.label, sub: a.sub, color: stroke, size: a.size_ ?? 17 });
+  }
+
+  // lines (fronts, walls, roads, borders): no arrowhead
+  for (const l of spec.lines || []) {
+    const pts = (l.points || []).filter(isPt).map(mp);
+    if (pts.length < 2) continue;
+    const stroke = strongOf(l.color ?? 'gray');
+    emit(gen.linearPath(pts, opts({ stroke, strokeWidth: l.width ?? 3, roughness: 0.7 })), { dashed: l.dashed ?? false });
+    sample(pts);
+    if (l.label) labelsLater.push({ kind: 'path', pts, text: l.label, color: stroke, size: 15 });
+  }
+  svgParts.push('</g>');
+  D.rect(X0, Y0, W, H, { stroke: INK, strokeWidth: 2, roughness: 0.8 });
+
+  // markers: compute rects first so arrows can stop at their edge
+  const byNode = new Map();
+  for (const n of nodes) {
+    if (!isPt(n.at)) continue;
+    const [cx, cy] = mp(n.at), k = n.kind;
+    let r;
+    if (k === 'place') r = { x: cx - 5, y: cy - 5, w: 10, h: 10, round: true };
+    else if (k === 'unit') r = { x: cx - 18, y: cy - 12, w: 36, h: 24 };
+    else if (k === 'badge') r = { x: cx - 16, y: cy - 16, w: 32, h: 32, round: true };
+    else if (k === 'label') r = { x: cx - 1, y: cy - 1, w: 2, h: 2, round: true };
+    else r = { x: cx - n._w / 2, y: cy - n._h / 2, w: n._w, h: n._h };
+    byNode.set(n.id, { n, cx, cy, r });
+    if (k !== 'label') obstacles.push(r);
+  }
+
+  // arrows: from/to = node id or [lon, lat]; "via" bends the path
+  const endPt = (ref) => (isPt(ref) ? { p: mp(ref) } : byNode.has(ref) ? { p: [byNode.get(ref).cx, byNode.get(ref).cy], node: byNode.get(ref) } : null);
+  const trim = (p, toward, node) => {
+    if (!node) return p;
+    const { r } = node, dx = toward[0] - p[0], dy = toward[1] - p[1], len = Math.hypot(dx, dy) || 1;
+    let t;
+    if (r.round) t = r.w / 2 + 4;
+    else { const tx = dx ? (r.w / 2 + 4) / Math.abs(dx / len) : Infinity, ty = dy ? (r.h / 2 + 4) / Math.abs(dy / len) : Infinity; t = Math.min(tx, ty); }
+    return [p[0] + (dx / len) * Math.min(t, len * 0.45), p[1] + (dy / len) * Math.min(t, len * 0.45)];
+  };
+  for (const e of spec.edges || []) {
+    const a = endPt(e.from), b = endPt(e.to);
+    if (!a || !b) { warn(`Map arrow ${JSON.stringify(e.from)} -> ${JSON.stringify(e.to)}: unknown node (use a node id or [lon, lat])`); continue; }
+    const via = (e.via || []).filter(isPt).map(mp);
+    let pts = [a.p, ...via, b.p];
+    pts[0] = trim(pts[0], pts[1], a.node);
+    pts[pts.length - 1] = trim(pts.at(-1), pts.at(-2), b.node);
+    const stroke = strongOf(e.color ?? 'blue'), w = e.width ?? 4;
+    emit(pts.length > 2 ? gen.curve(pts, opts({ stroke, strokeWidth: w, roughness: 0.8, bowing: 0.5 })) : gen.line(...pts[0], ...pts[1], opts({ stroke, strokeWidth: w, roughness: 0.8, bowing: 0.5 })), { dashed: e.dashed });
+    const curve = spline(pts);
+    if (e.arrow !== false) {
+      const [x2, y2] = curve.at(-1), [x1, y1] = curve.at(-2);
+      const ang = Math.atan2(y2 - y1, x2 - x1), L = 10 + w * 3, sp = 0.42;
+      emit(gen.polygon([[x2, y2], [x2 - L * Math.cos(ang - sp), y2 - L * Math.sin(ang - sp)], [x2 - L * Math.cos(ang + sp), y2 - L * Math.sin(ang + sp)]], opts({ stroke, fill: stroke, fillStyle: 'solid', strokeWidth: 1.5, roughness: 0.5 })));
+    }
+    sample(curve);
+    if (e.label) labelsLater.push({ kind: 'path', pts: curve, text: e.label, color: stroke, size: 14.5 });
+  }
+
+  // markers
+  for (const { n, cx, cy, r } of byNode.values()) {
+    const col = n.color, stroke = strongOf(col ?? (n.kind === 'unit' ? 'orange' : 'black'));
+    if (n.kind === 'place') {
+      D.ellipse(cx, cy, n.size ?? 9, n.size ?? 9, { fill: INK, fillStyle: 'solid', strokeWidth: 1, roughness: 0.4 });
+      if (n.label) labelsLater.push({ kind: 'point', at: [cx, cy], r, text: n.label, sub: n.sub, pos: n.labelPos, color: col ? stroke : INK, size: n.minor ? 13 : 15, bold: !n.minor });
+    } else if (n.kind === 'unit') {
+      D.rect(r.x, r.y, r.w, r.h, { stroke, fill: fillOf(col ?? 'orange'), fillStyle: 'solid', strokeWidth: 2, roughness: 0.6 });
+      const sym = n.symbol ?? 'none';
+      if (sym === 'armor') D.ellipse(cx, cy, 22, 11, { stroke, strokeWidth: 1.6, roughness: 0.4 });
+      if (sym === 'infantry') { D.line(r.x, r.y, r.x + r.w, r.y + r.h, { stroke, strokeWidth: 1.6, roughness: 0.4 }); D.line(r.x, r.y + r.h, r.x + r.w, r.y, { stroke, strokeWidth: 1.6, roughness: 0.4 }); }
+      if (sym === 'airborne') D.path(`M${cx - 10} ${cy + 2} Q${cx - 5} ${cy - 6} ${cx} ${cy + 2} Q${cx + 5} ${cy - 6} ${cx + 10} ${cy + 2}`, { stroke, strokeWidth: 1.6, roughness: 0.4 });
+      if (n.label) labelsLater.push({ kind: 'point', at: [cx, cy], r, text: n.label, sub: n.sub, pos: n.labelPos, color: stroke, size: 13.5, bold: true });
+    } else if (n.kind === 'label') {
+      labelsLater.push({ kind: 'fixed', at: [cx, cy], text: n.label ?? '', sub: n.sub, color: strongOf(col ?? 'black'), size: n.size ?? 15, bold: n.bold ?? true });
+    } else if (n.kind === 'badge') {
+      D.ellipse(cx, cy, 30, 30, { stroke, fill: '#ffffff', fillStyle: 'solid', strokeWidth: 2.2, roughness: 0.7 });
+      D.text(cx, cy - fs_(18) * 0.62, String(n.label ?? ''), { size: 18, bold: true, color: stroke });
+    } else {
+      // box / note / text / pill...: same look as in diagrams, centered on the coordinate
+      pos.set(n.id, { x: r.x - OX, y: r.y - OY });
+      drawNode(n);
+    }
+  }
+
+  // legend
+  if (Array.isArray(cfg.legend) && cfg.legend.length) {
+    const items = cfg.legend, rowH = 30, w = Math.max(...items.map((i) => measure(i.label ?? '', 14.5))) + 70, h = items.length * rowH + 18;
+    const corner = cfg.legendPos ?? 'bottom-left';
+    const lx = corner.includes('right') ? X0 + W - w - 14 : X0 + 14, ly = corner.includes('top') ? Y0 + 14 : Y0 + H - h - 14;
+    D.rect(lx, ly, w, h, { fill: '#ffffff', fillStyle: 'solid', strokeWidth: 1.6, roughness: 0.7, r: 6 });
+    items.forEach((it, i) => {
+      const cy = ly + 9 + rowH * i + rowH / 2, sx = lx + 26, c = strongOf(it.color ?? 'black');
+      const type = it.type ?? (it.badge != null ? 'badge' : 'swatch');
+      if (type === 'badge') { D.ellipse(sx, cy, 26, 26, { stroke: c, fill: '#fff', fillStyle: 'solid', strokeWidth: 2, roughness: 0.6 }); D.text(sx, cy - fs_(15) * 0.62, String(it.badge ?? ''), { size: 15, bold: true, color: c }); }
+      else if (type === 'line' || type === 'dashed' || type === 'arrow') { D.line(sx - 14, cy, sx + 14, cy, { stroke: c, strokeWidth: type === 'arrow' ? 4 : 3, roughness: 0.4, dashed: type === 'dashed' }); if (type === 'arrow') D.poly([[sx + 6, cy - 6], [sx + 14, cy], [sx + 6, cy + 6]], { stroke: c, strokeWidth: 3, roughness: 0.3 }); }
+      else D.rect(sx - 12, cy - 9, 24, 18, { stroke: c, fill: fillOf(it.color ?? 'gray'), fillStyle: 'solid', strokeWidth: 1.6, roughness: 0.5, r: 3 });
+      D.text(lx + 52, cy - lineH(14.5) / 2, it.label ?? '', { size: 14.5, anchor: 'start' });
+    });
+    const lg = { x: lx, y: ly, w, h };
+    for (const { n, r } of byNode.values()) {
+      const ox = Math.max(0, Math.min(r.x + r.w, lg.x + lg.w) - Math.max(r.x, lg.x)), oy = Math.max(0, Math.min(r.y + r.h, lg.y + lg.h) - Math.max(r.y, lg.y));
+      if (ox * oy > 0) warn(`Map node "${n.id}" is hidden under the legend: move it or set map.legendPos (top-left, top-right, bottom-right)`);
+    }
+    obstacles.push(lg);
+  }
+
+  // ---------- labels, placed last to avoid what's already drawn ----------
+  const frame = { x: X0, y: Y0, w: W, h: H };
+  const ov = (a, b) => Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+  const outside = (r) => r.w * r.h - ov(r, frame);
+  const inkIn = (r) => { let c = 0; for (const [x, y, wg] of ink) if (x > r.x - 6 && x < r.x + r.w + 6 && y > r.y - 5 && y < r.y + r.h + 5) c += wg; return c; };
+  const score = (r, i) => obstacles.reduce((s, o) => s + ov(r, o), 0) * 10 + inkIn(r) * 300 + outside(r) * 1000 + i * 25;
+  const block = (L) => {
+    const size = L.size, bold = L.bold ?? true;
+    if (L.kind !== 'fixed' && !L._wrapped) { L.text = wrap(L.text, size, L.maxW ?? 210, bold).join('\n'); L._wrapped = true; }
+    const lines = String(L.text).split('\n');
+    const w = Math.max(...lines.map((t) => measure(t, size, bold)), L.sub ? Math.max(...String(L.sub).split('\n').map((t) => measure(t, 12.5))) : 0);
+    const h = lines.length * lineH(size) + (L.sub ? String(L.sub).split('\n').length * lineH(12.5) : 0);
+    return { w, h, lines, bold };
+  };
+  const put = (L, rect, anchor) => {
+    const x = anchor === 'start' ? rect.x : anchor === 'end' ? rect.x + rect.w : rect.x + rect.w / 2;
+    let y = rect.y + D.text(x, rect.y, L.text, { size: L.size, bold: L.bold ?? true, color: L.color, anchor, halo: true });
+    if (L.sub) D.text(x, y, L.sub, { size: 12.5, color: L.color === INK ? MUTED : L.color, anchor, halo: true });
+    obstacles.push({ x: rect.x - 3, y: rect.y - 2, w: rect.w + 6, h: rect.h + 4 });
+  };
+  const POS = { e: [1, 0], w: [-1, 0], n: [0, -1], s: [0, 1], ne: [1, -1], nw: [-1, -1], se: [1, 1], sw: [-1, 1] };
+  const order = ['e', 'w', 'ne', 'se', 'nw', 'sw', 'n', 's'];
+  // fixed labels first (areas), then points, then path labels
+  const rank = { fixed: 0, point: 1, path: 2 };
+  // short paths first: they have fewer good spots
+  const plen = (L) => (L.pts ? L.pts.reduce((s, p, i) => (i ? s + Math.hypot(p[0] - L.pts[i - 1][0], p[1] - L.pts[i - 1][1]) : 0), 0) : 0);
+  for (const L of labelsLater.sort((a, b) => rank[a.kind] - rank[b.kind] || plen(a) - plen(b))) {
+    const { w, h } = block(L);
+    if (L.kind === 'fixed') { put(L, { x: L.at[0] - w / 2, y: L.at[1] - h / 2, w, h }, 'middle'); continue; }
+    const cands = [];
+    if (L.kind === 'point') {
+      const [px, py] = L.at, gx = L.r.w / 2 + 6, gy = L.r.h / 2 + 4;
+      for (const k of (L.pos ? [L.pos] : order)) {
+        const [dx, dy] = POS[k] ?? POS.e;
+        const x = dx > 0 ? px + gx : dx < 0 ? px - gx - w : px - w / 2;
+        const y = dy > 0 ? py + gy : dy < 0 ? py - gy - h : py - h / 2;
+        cands.push({ r: { x, y, w, h }, a: dx > 0 ? 'start' : dx < 0 ? 'end' : 'middle' });
+      }
+    } else {
+      // along a path: try points near the middle, beside the line on either side
+      const pts = L.pts, segs = [];
+      let tot = 0;
+      for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push([pts[i - 1], pts[i], tot, l]); tot += l; }
+      for (const f of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+        const d = f * tot, sg = segs.find(([, , s0, l]) => d >= s0 && d <= s0 + l) ?? segs.at(-1);
+        const t = sg[3] ? (d - sg[2]) / sg[3] : 0, px = sg[0][0] + (sg[1][0] - sg[0][0]) * t, py = sg[0][1] + (sg[1][1] - sg[0][1]) * t;
+        const nx = -(sg[1][1] - sg[0][1]) / (sg[3] || 1), ny = (sg[1][0] - sg[0][0]) / (sg[3] || 1);
+        for (const side of [1, -1]) {
+          // distance along the normal so the whole rectangle clears the line (support function of the rect)
+          const dd = (w / 2) * Math.abs(nx) + (h / 2) * Math.abs(ny) + 9;
+          const ox = px + nx * side * dd, oy = py + ny * side * dd;
+          cands.push({ r: { x: ox - w / 2, y: oy - h / 2, w, h }, a: 'middle' });
+        }
+      }
+    }
+    let best = cands[0], bs = Infinity;
+    cands.forEach((c, i) => { const sc = score(c.r, i); if (sc < bs) { bs = sc; best = c; } });
+    put(L, best.r, best.a);
+  }
+}
+
 // ---------- board layout: groups as columns (or rows), nodes in listed order, no ELK ----------
 // Returns the same shape ELK does (absolute coords), so the drawing code below is shared.
 function boardLayout() {
@@ -651,9 +913,9 @@ function boardLayout() {
   return { width: Math.max(0, ...all.map((b) => b.x + b.width)) + 12, height: Math.max(0, ...all.map((b) => b.y + b.height)) + 12, children, edges: laidE };
 }
 
-const board = String(spec.layout || '').toLowerCase() === 'board';
-if (spec.layout && !board) warn(`Unknown layout "${spec.layout}" (use "board" or leave it out)`);
-const laid = board ? boardLayout() : await new ELK().layout(graph);
+const board = LAYOUT === 'board';
+if (spec.layout && !board && !isMap) warn(`Unknown layout "${spec.layout}" (use "board", "map" or leave it out)`);
+const laid = isMap ? mapLayout() : board ? boardLayout() : await new ELK().layout(graph);
 
 // ---------- collect absolute positions ----------
 const pos = new Map();
@@ -806,14 +1068,17 @@ function drawEdges() {
 // ---------- assemble in z-order: title, groups, nodes, edges, labels ----------
 if (spec.title) D.text(M, M - 6, spec.title, { size: 30, bold: true, anchor: 'start' });
 if (spec.subtitle) D.text(M, M + 38, spec.subtitle, { size: 16, anchor: 'start', color: MUTED });
-for (const g of groups) {
+for (const g of isMap ? [] : groups) {
   const p = groupPos.get(g.id); if (!p) continue;
   const x = OX + p.x, y = OY + p.y;
   D.rect(x, y, p.width, p.height, { r: 16, dashed: true, roughness: 0.8, strokeWidth: 1.4, stroke: '#868e96', fill: g.color ? tint(fillOf(g.color), g.tint ?? (g.color === 'gray' ? 1 : 0.45)) : undefined, fillStyle: g.color ? 'solid' : undefined });
   if (g.label) D.text(x + 18, y + 12, g.label, { size: 17, bold: true, anchor: 'start', color: '#495057' });
 }
-for (const n of nodes) if (pos.has(n.id)) drawNode(n);
-drawEdges();
+if (isMap) drawMap();
+else {
+  for (const n of nodes) if (pos.has(n.id)) drawNode(n);
+  drawEdges();
+}
 
 // ---------- write SVG ----------
 const b64 = (f) => fs.readFileSync(path.join(ROOT, 'assets/fonts', f)).toString('base64');
