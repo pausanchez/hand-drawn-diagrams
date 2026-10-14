@@ -38,10 +38,18 @@ Una sola pantalla con navegador, filtros, mapa destacado, ficha y botones de acc
 ## Instalación
 
 ### Claude Code
-```
-/plugin marketplace add pausanchez/hand-drawn-diagrams
-/plugin install hand-drawn-diagrams@pausanchez
-```
+Ejecuta estos dos comandos **por separado**, uno detrás de otro. Si los pegas juntos, Claude Code los toma como un solo comando y no instala nada.
+
+1. Añade el marketplace:
+   ```
+   /plugin marketplace add pausanchez/hand-drawn-diagrams
+   ```
+2. Instala el plugin:
+   ```
+   /plugin install hand-drawn-diagrams@pausanchez
+   ```
+
+Para exportar a PNG, ejecuta una vez `npx playwright install chromium`.
 
 ### Claude.ai / app de Claude
 1. Descarga la carpeta [`skills/hand-drawn-diagrams`](skills/hand-drawn-diagrams) y comprímela en un `.zip`. Puedes usar *Code → Download ZIP* y quedarte solo con esa carpeta.
@@ -50,7 +58,7 @@ Una sola pantalla con navegador, filtros, mapa destacado, ficha y botones de acc
 ### A mano
 Copia `skills/hand-drawn-diagrams` en `~/.claude/skills/`.
 
-La primera vez que se usa, Claude ejecuta `npm install` dentro de la carpeta de la skill. Para exportar a PNG hace falta Playwright con Chromium; si no está disponible, la skill genera igualmente el SVG.
+La primera vez que se usa, o después de una actualización, Claude ejecuta `npm install` dentro de la carpeta de la skill si faltan dependencias. Para exportar a PNG hace falta Playwright con Chromium; sin él, la skill genera igualmente el SVG.
 
 ## Uso
 

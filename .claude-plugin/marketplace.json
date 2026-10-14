@@ -1,12 +1,13 @@
 {
   "name": "pausanchez",
+  "description": "Claude skills by Pau Sánchez: hand-drawn whiteboard-style diagrams, flows and wireframes.",
   "owner": { "name": "Pau Sánchez", "url": "https://github.com/pausanchez" },
   "plugins": [
     {
       "name": "hand-drawn-diagrams",
       "source": "./",
       "description": "Flowcharts, workflows, screen flows and wireframes in a sketchy hand-drawn whiteboard style (SVG + PNG).",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "license": "MIT"
     }
   ]

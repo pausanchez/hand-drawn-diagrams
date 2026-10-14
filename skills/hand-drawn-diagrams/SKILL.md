@@ -9,18 +9,21 @@ Renders a JSON spec into an SVG (and PNG) that looks sketched on a whiteboard:
 rough.js strokes, hachure fills, a handwritten font, automatic layout with ELK.
 You never compute coordinates — you describe nodes, screens and edges; the script lays them out.
 
-## Setup (once per environment)
+## Setup (only when dependencies are missing)
 
 ```bash
-cd <skill-dir> && npm install          # roughjs, elkjs, opentype.js (+ playwright, optional, for PNG)
+cd <skill-dir> && [ -d node_modules ] || npm install   # roughjs, elkjs, opentype.js (+ playwright, optional, for PNG)
 ```
+Check for `node_modules` first and install only if it's missing. When the skill is installed as a
+plugin, its folder is replaced on every update, so dependencies may need reinstalling after an upgrade.
+
 PNG export needs Playwright with a Chromium browser. If it's missing the script still writes the SVG
-and prints "PNG skipped". `npx playwright install chromium` fixes it where the network allows.
+and prints "PNG skipped"; run `npx playwright install chromium` once to enable PNG output.
 
 ## Workflow
 
 1. **Decide the diagram type** (see below) and write a spec JSON in the working directory.
-   Read `reference/spec-format.md` for every field and component. `examples/` has two complete specs.
+   Read `reference/spec-format.md` for every field and component. `examples/` has four complete specs (process, screen flow, swimlanes, wireframe).
 2. **Render**: `node <skill-dir>/scripts/render.mjs spec.json --out out/name`
    → `out/name.svg` + `out/name.png` (2x). Flags: `--no-png`, `--scale 3`.
 3. **Read the warnings** the script prints (unknown component, missing component id, word too long) and fix them.
