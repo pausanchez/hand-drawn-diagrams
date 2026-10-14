@@ -2,7 +2,8 @@
   "title": "1.0.0 → 1.0.1",
   "nodes": [
     { "id": "a", "label": "Hecho ✓" },
-    { "id": "b", "label": "Favorito ★" }
+    { "id": "b", "label": "Favorito ★" },
+    { "id": "c", "label": "Listo ✔️" }
   ],
-  "edges": [{ "from": "a", "to": "b" }]
+  "edges": [{ "from": "a", "to": "b" }, { "from": "b", "to": "c" }]
 }

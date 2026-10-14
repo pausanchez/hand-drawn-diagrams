@@ -91,10 +91,13 @@ const GLYPH_SUBS = {
   '✓': 'ok', '✔': 'ok', '☑': 'ok', '✅': 'ok', '✗': '×', '✘': '×', '❌': '×', '●': '•', '⦁': '•',
 };
 const GLYPH_RE = new RegExp(`[${Object.keys(GLYPH_SUBS).join('')}]`, 'gu');
+// Invisible format characters (emoji variation selectors like the one in ✔️, zero-width joiners/spaces, BOM).
+// They draw nothing, so drop them instead of warning about a "missing" glyph nobody can see.
+const INVISIBLE_RE = /[\u200B-\u200D\u2060\uFE00-\uFE0F\uFEFF]/gu;
 const substituted = new Set();
 (function subStrings(o) {
   for (const k in o) {
-    if (typeof o[k] === 'string') o[k] = o[k].replace(GLYPH_RE, (c) => (substituted.add(`"${c}" with "${GLYPH_SUBS[c]}"`), GLYPH_SUBS[c]));
+    if (typeof o[k] === 'string') o[k] = o[k].replace(INVISIBLE_RE, '').replace(GLYPH_RE, (c) => (substituted.add(`"${c}" with "${GLYPH_SUBS[c]}"`), GLYPH_SUBS[c]));
     else if (o[k] && typeof o[k] === 'object') subStrings(o[k]);
   }
 })(spec);

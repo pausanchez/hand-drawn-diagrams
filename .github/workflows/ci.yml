@@ -50,6 +50,7 @@ jobs:
           echo "$log" | grep -q 'replaced symbols the font lacks: "→" with "->", "✓" with "ok"' || { echo "::error::→ / ✓ were not substituted"; exit 1; }
           echo "$log" | grep -q 'Character "★"' || { echo "::error::no warning for ★"; exit 1; }
           if grep -q '[→✓]' out/missing-glyphs.svg; then echo "::error::substituted symbols still in SVG"; exit 1; fi
+          if echo "$log" | grep -q 'U+FE0F'; then echo "::error::false warning for the invisible variation selector in ✔️"; exit 1; fi
 
       - uses: actions/upload-artifact@v4
         if: always()
