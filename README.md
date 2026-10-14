@@ -34,6 +34,14 @@ Con `"layout": "board"`, cada grupo es una columna y las tarjetas salen en el or
 ![Tablero](skills/hand-drawn-diagrams/examples/board.png)
 → [`board.json`](skills/hand-drawn-diagrams/examples/board.json)
 
+### Mapa
+Con `"layout": "map"` todo se coloca por coordenadas (longitud y latitud, o x/y para un plano): costa, zonas, líneas, lugares, unidades y flechas que se curvan por puntos intermedios. Las etiquetas se colocan solas sin chocar entre sí ni con las flechas. Sirve para batallas y campañas, rutas, territorios o un plano de planta.
+
+![Mapa de Normandía](skills/hand-drawn-diagrams/examples/map-normandy.png)
+→ [`map-normandy.json`](skills/hand-drawn-diagrams/examples/map-normandy.json)
+
+> **Prompt:** *"Hazme un diagrama explicando la estrategia usada en Normandía por ambos frentes… pero tipo mapa"*
+
 ### Wireframe de escritorio
 Una sola pantalla con navegador, filtros, mapa destacado, ficha y botones de acción.
 
@@ -89,6 +97,7 @@ Toda la referencia del formato está en [`reference/spec-format.md`](skills/hand
 | Flujos de pantallas | móvil, tablet o escritorio con componentes (inputs, botones, chips, listas, tarjetas, OTP…) y flechas que salen de los botones |
 | Wireframes | una sola pantalla con texto realista |
 | Tableros | columnas (o filas) de tarjetas en orden, tipo kanban o tablero de estado |
+| Mapas | esquemáticos por coordenadas: costa, zonas, frentes, lugares, unidades y flechas con etiquetas que se colocan solas |
 
 Estilo configurable: fuente (Kalam o Caveat), rugosidad, tipo de relleno, color de acento y semilla.
 
