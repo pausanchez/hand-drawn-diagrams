@@ -53,7 +53,9 @@ Mixing is fine: screens plus a `diamond` for a decision plus a `note`, as in `ex
 - **Realistic copy in wireframes**: real titles, button text and placeholders in the user's language, not lorem ipsum.
 - Screens are ~250 px wide; more than ~8 screens in a row gets very wide — use `"wrap": true`,
   or split into two diagrams (e.g. happy path / edge cases).
-- The font has Latin glyphs only: no emoji, no CJK.
+- The font has Latin letters and common punctuation only (accents, ñ, ¿¡, · – — … “” €, ×, •). No emoji, CJK,
+  arrows or checkmarks: write `->`, `<-`, `=>`, `ok`. The script swaps → ← ⇒ ✓ ✗ ● for these automatically and
+  warns about any other symbol it can't draw (it would show as a box): replace those and re-render.
 
 ## Style knobs (top level of the spec)
 

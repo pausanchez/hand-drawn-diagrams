@@ -1,0 +1,8 @@
+{
+  "title": "1.0.0 → 1.0.1",
+  "nodes": [
+    { "id": "a", "label": "Hecho ✓" },
+    { "id": "b", "label": "Favorito ★" }
+  ],
+  "edges": [{ "from": "a", "to": "b" }]
+}
