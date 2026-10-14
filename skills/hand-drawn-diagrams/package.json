@@ -1,6 +1,6 @@
 {
   "name": "hand-drawn-diagrams",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "Hand-drawn style diagrams (rough.js + ELK). Prebuilt: scripts/render.mjs runs with plain Node, no npm install.",
   "keywords": [
     "claude",
@@ -21,7 +21,7 @@
   "scripts": {
     "build": "node build.mjs",
     "check-build": "node build.mjs --check",
-    "examples": "node scripts/render.mjs examples/workflow.json --out out/workflow && node scripts/render.mjs examples/onboarding.json --out out/onboarding && node scripts/render.mjs examples/forest-owners.json --out out/forest-owners && node scripts/render.mjs examples/wireframe.json --out out/wireframe"
+    "examples": "node scripts/render.mjs examples/workflow.json --out out/workflow && node scripts/render.mjs examples/onboarding.json --out out/onboarding && node scripts/render.mjs examples/forest-owners.json --out out/forest-owners && node scripts/render.mjs examples/wireframe.json --out out/wireframe && node scripts/render.mjs examples/board.json --out out/board"
   },
   "devDependencies": {
     "@resvg/resvg-wasm": "^2.6.2",

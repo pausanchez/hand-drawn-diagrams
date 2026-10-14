@@ -6,6 +6,8 @@ The spec is plain JSON (the `//` comments below are annotations only — do not 
 {
   "title": "Optional big title", "subtitle": "Optional one-liner",
   "direction": "RIGHT",            // RIGHT | DOWN | LEFT | UP
+  "layout": "board",               // optional: groups as columns, nodes in listed order (see below)
+  "columnWidth": 240,              // board only: fixed card/column width
   "nodes":  [ ... ],
   "edges":  [ ... ],
   "groups": [ ... ],               // optional
@@ -86,3 +88,17 @@ Common fields: `id` (required, unique), `label`, `kind`, `color`, `fillStyle`, `
 Dashed rounded container around its children. Use for swimlanes, systems, or phases. A node belongs to at most one group.
 - `color` fills the group with a light tint of that colour (45 % strength, `gray` at full) so the nodes inside still stand out.
   `tint` (0–1) overrides the strength, e.g. `"tint": 0.25` for very faint, `1` for the full pastel.
+
+## Board layout
+
+`"layout": "board"` skips the automatic graph layout and lays the diagram out like a kanban or status board:
+
+- Each group is a **column**, in the order of `groups`; nodes go top to bottom in the order of each group's `children`.
+- Nodes in no group form one extra column at the end, without a frame.
+- All columns share one width (the widest card, or `columnWidth`) and the same height. Boxes, notes and pills
+  stretch to the column width; diamonds, circles and screens stay their size, centered.
+- `direction: "DOWN"` turns columns into rows (cards left to right). `LEFT` / `UP` reverse the lane order.
+- Edges are optional and drawn as simple elbows between cards. Fine for one or two links; for anything
+  with real flow, use the normal layout instead.
+
+No invisible edges or fixed widths needed: with the normal layout, groups without edges get stacked and reordered.
