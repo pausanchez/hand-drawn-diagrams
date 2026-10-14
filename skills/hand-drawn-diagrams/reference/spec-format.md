@@ -84,3 +84,5 @@ Common fields: `id` (required, unique), `label`, `kind`, `color`, `fillStyle`, `
 { "id": "editorial", "label": "Equipo editorial", "children": ["review", "ok"], "color": "gray", "direction": "DOWN" }
 ```
 Dashed rounded container around its children. Use for swimlanes, systems, or phases. A node belongs to at most one group.
+- `color` fills the group with a light tint of that colour (45 % strength, `gray` at full) so the nodes inside still stand out.
+  `tint` (0–1) overrides the strength, e.g. `"tint": 0.25` for very faint, `1` for the full pastel.

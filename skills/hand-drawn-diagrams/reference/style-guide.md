@@ -11,6 +11,9 @@
 | Waiting / manual / human review | `orange` |
 | Neutral, background lanes | `gray` |
 
+Groups are tinted lighter automatically. With 3+ groups side by side, prefer `gray` (or no colour) for all
+of them and keep colour for the nodes: four coloured columns compete with what's inside them.
+
 Fills are pastel hachure; strokes stay near-black so the drawing reads like a marker sketch.
 Primary buttons inside screens use the stronger `accent` tone as a solid fill so the CTA pops.
 

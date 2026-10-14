@@ -1,7 +1,7 @@
 {
   "name": "hand-drawn-diagrams",
-  "version": "1.0.1",
-  "description": "Hand-drawn style diagrams (rough.js + ELK)",
+  "version": "1.1.0",
+  "description": "Hand-drawn style diagrams (rough.js + ELK). Prebuilt: scripts/render.mjs runs with plain Node, no npm install.",
   "keywords": [
     "claude",
     "skill",
@@ -13,14 +13,21 @@
   ],
   "author": "Pau Sánchez",
   "license": "MIT",
-  "dependencies": {
+  "repository": "github:pausanchez/hand-drawn-diagrams",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "check-build": "node build.mjs --check",
+    "examples": "node scripts/render.mjs examples/workflow.json --out out/workflow && node scripts/render.mjs examples/onboarding.json --out out/onboarding && node scripts/render.mjs examples/forest-owners.json --out out/forest-owners && node scripts/render.mjs examples/wireframe.json --out out/wireframe"
+  },
+  "devDependencies": {
+    "@resvg/resvg-wasm": "^2.6.2",
     "elkjs": "^0.12.0",
+    "esbuild": "^0.28.2",
     "opentype.js": "^2.0.0",
     "roughjs": "^4.6.6"
-  },
-  "type": "module",
-  "optionalDependencies": {
-    "playwright": "^1.56.0"
-  },
-  "repository": "github:pausanchez/hand-drawn-diagrams"
+  }
 }
