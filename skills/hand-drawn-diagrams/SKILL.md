@@ -1,6 +1,6 @@
 ---
 name: hand-drawn-diagrams
-description: Draw flowcharts, workflows, screen flows, wireframes, prototypes, kanban/status boards and schematic maps in a sketchy hand-drawn whiteboard style (rough lines, hachure fills, handwritten font) as SVG and PNG. Use when the user asks for a flow, workflow, user flow, onboarding flow, wireframe, prototype, process diagram, board of cards in columns, or a map (battle, campaign, route, territory, floor plan) that should look hand-drawn, sketched, or "whiteboard style".
+description: Draw flowcharts, workflows, screen flows, wireframes, prototypes, kanban/status boards, schematic maps and illustrated whiteboard scenes in a sketchy hand-drawn whiteboard style (rough lines, hachure fills, handwritten font) as SVG and PNG. Use when the user asks for a flow, workflow, user flow, onboarding flow, wireframe, prototype, process diagram, board of cards in columns, a map (battle, campaign, route, territory, floor plan), or a drawn explainer scene with people, laptops, bubbles and arrows ("like a whiteboard animation video", "visual thinking", "sketchnote") that should look hand-drawn, sketched, or "whiteboard style".
 ---
 
 # Hand-drawn diagrams
@@ -18,7 +18,7 @@ Don't run `npm install` in the skill folder; that's only for developing the rend
 ## Workflow
 
 1. **Decide the diagram type** (see below) and write a spec JSON in the working directory.
-   Read `reference/spec-format.md` for every field and component. `examples/` has six complete specs (process, screen flow, swimlanes, wireframe, board, map).
+   Read `reference/spec-format.md` for every field and component. `examples/` has seven complete specs (process, screen flow, swimlanes, wireframe, board, map, scene).
 2. **Render**: `node <skill-dir>/scripts/render.mjs spec.json --out out/name`
    → `out/name.svg` + `out/name.png` (2x). Flags: `--no-png`, `--scale 3`.
 3. **Read the warnings** the script prints (unknown component, missing component id, word too long) and fix them.
@@ -38,6 +38,7 @@ Don't run `npm install` in the skill folder; that's only for developing the rend
 | Single wireframe | one `screen` node, no edges (use `device: "desktop"` for web) |
 | Board / kanban / status columns / comparison | `"layout": "board"` + one group per column; no edges needed (see spec-format.md) |
 | Map: campaign, battle, route, trip, territory, floor or site plan | `"layout": "map"` + `bounds`, `land`, `areas`, `lines`, nodes with `"at": [lon, lat]`, arrows with `via` (see spec-format.md, `examples/map-normandy.json`) |
+| Illustrated scene: explain a story, a demo or how a team works, "like a whiteboard video" | `"layout": "scene"` + doodles (`crowd`, `person`, `laptop`, `cloud`, `bubble`, `notepad`, `mic`, `bulb`, `doc`, `sparkle`, `text`) and screens placed with `"at": [x, y]`, numbered `step`s, arrows with `via` (see spec-format.md, `examples/scene-demo.json`) |
 
 Mixing is fine: screens plus a `diamond` for a decision plus a `note`, as in `examples/onboarding.json`.
 
@@ -58,6 +59,14 @@ Mixing is fine: screens plus a `diamond` for a decision plus a `note`, as in `ex
 - The font has Latin letters and common punctuation only (accents, ñ, ¿¡, · – — … “” €, ×, •). No emoji, CJK,
   arrows or checkmarks: write `->`, `<-`, `=>`, `ok`. The script swaps → ← ⇒ ✓ ✗ ● for these automatically and
   warns about any other symbol it can't draw (it would show as a box): replace those and re-render.
+
+## Scenes
+
+- Sketch the story first: 5–8 moments, numbered with `step`, read in a loop or left to right.
+- Lay it out on a rough grid (columns ~350–450 px apart) and leave room for captions under each drawing.
+- One strong colour for the key arrow of the story (`width: 5`, e.g. blue), black for the rest.
+- Captions short (≤ 4 words); put speech in `bubble`s and ideas in `cloud`s.
+- Fix every overlap warning: drawings that touch read as a mess in a scene.
 
 ## Style knobs (top level of the spec)
 

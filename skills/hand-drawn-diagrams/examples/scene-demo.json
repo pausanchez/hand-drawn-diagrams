@@ -1,0 +1,56 @@
+{
+  "title": "¿Cómo se hizo la demo?",
+  "subtitle": "Formación para product managers: de una conversación a un diseño cambiado, sin tocarlo a mano",
+  "layout": "scene",
+  "seed": 11,
+  "roughness": 1.2,
+  "nodes": [
+    { "id": "idea", "kind": "cloud", "at": [190, 70], "text": "¡Una tienda tipo Amazon!", "tail": "sala" },
+    { "id": "sala", "kind": "crowd", "at": [205, 260], "arm": true, "label": "Sala de PMs", "step": 1 },
+
+    { "id": "laptop", "kind": "laptop", "at": [700, 250], "text": "Claude", "prompt": "diseña este flujo...", "step": 2 },
+    { "id": "prompt", "kind": "bubble", "at": [700, 70], "text": "Prompt sencillo", "bold": true, "scale": 1.25, "tail": [690, 138] },
+
+    { "id": "v1", "kind": "screen", "at": [1270, 245], "label": "Diseño v1", "step": 3, "minHeight": 400,
+      "components": [
+        { "type": "title", "text": "Mi Tienda", "size": 22 },
+        { "type": "input", "placeholder": "Buscar..." },
+        { "type": "image", "label": "auriculares", "h": 110 },
+        { "type": "text", "text": "Auriculares Pro · 49,99 €", "align": "left" },
+        { "type": "spacer", "flex": true },
+        { "type": "button", "text": "Añadir", "variant": "secondary" }
+      ] },
+
+    { "id": "notepad", "kind": "notepad", "at": [1250, 660], "text": "Granola", "label": "graba el feedback", "step": 4 },
+    { "id": "mic", "kind": "mic", "at": [1105, 660] },
+    { "id": "fb1", "kind": "bubble", "at": [1470, 520], "text": "¡Botón más grande!", "width": 120, "tail": [1345, 575] },
+    { "id": "fb2", "kind": "bubble", "at": [1470, 700], "text": "Faltan filtros", "tail": [1338, 690] },
+
+    { "id": "mcp", "kind": "text", "at": [960, 455], "label": "MCP", "size": 42, "color": "blue", "rotate": 18, "step": 5 },
+    { "id": "mcp-quote", "kind": "text", "at": [985, 520], "label": "\"lee el meeting y haz los cambios\"", "size": 20, "bold": false, "width": 190, "color": "blue", "rotate": 18 },
+
+    { "id": "v2", "kind": "screen", "at": [470, 640], "label": "Diseño v2", "step": 6, "minHeight": 400,
+      "components": [
+        { "type": "title", "text": "Mi Tienda", "size": 22 },
+        { "type": "input", "placeholder": "Buscar..." },
+        { "type": "chips", "items": ["Precio", "Marca", "Envío"], "selected": ["Precio"] },
+        { "type": "image", "label": "auriculares", "h": 80 },
+        { "type": "text", "text": "Auriculares Pro · 49,99 €", "align": "left" },
+        { "type": "spacer", "flex": true },
+        { "type": "button", "text": "Comprar ya", "color": "orange", "highlight": true }
+      ] },
+    { "id": "s1", "kind": "sparkle", "at": [325, 450] },
+    { "id": "s2", "kind": "sparkle", "at": [620, 520] },
+    { "id": "s3", "kind": "sparkle", "at": [615, 830] },
+
+    { "id": "aha", "kind": "bulb", "at": [110, 640], "label": "¡Momento ajá!", "labelSize": 30, "labelColor": "orange", "step": 7 }
+  ],
+  "edges": [
+    { "from": "sala", "to": "laptop" },
+    { "from": "laptop", "to": "v1", "via": [[1000, 140]], "label": "lo crea" },
+    { "from": "v1", "to": "notepad" },
+    { "from": "mic", "to": "laptop", "via": [[930, 610], [820, 470]], "color": "blue", "width": 5 },
+    { "from": "laptop", "to": "v2", "via": [[640, 420]], "label": "cambios", "labelSide": -1 },
+    { "from": "v2", "to": "aha" }
+  ]
+}

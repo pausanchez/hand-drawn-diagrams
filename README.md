@@ -1,6 +1,6 @@
 # Hand-drawn diagrams · Skill para Claude
 
-Una skill para Claude que dibuja **diagramas de flujo, workflows, flujos de pantallas y wireframes con aspecto de pizarra hecho a mano**: trazos irregulares, rellenos rayados y letra manuscrita.
+Una skill para Claude que dibuja **diagramas de flujo, workflows, flujos de pantallas, wireframes y escenas ilustradas con aspecto de pizarra hecho a mano**: trazos irregulares, rellenos rayados y letra manuscrita.
 
 Le describes la idea a Claude y él escribe una especificación en JSON. La skill la convierte en un SVG y un PNG, y la maquetación es automática: nunca hay que calcular coordenadas.
 
@@ -42,6 +42,14 @@ Con `"layout": "map"` todo se coloca por coordenadas (longitud y latitud, o x/y 
 
 > **Prompt:** *"Hazme un diagrama explicando la estrategia usada en Normandía por ambos frentes… pero tipo mapa"*
 
+### Escena ilustrada (pizarra terminada)
+Con `"layout": "scene"` se dibuja una ilustración como el último fotograma de un vídeo de pizarra: personas, un portátil, móviles, nubes de pensamiento, bocadillos, una libreta, una bombilla, pasos numerados y flechas a mano que cuentan una historia. Cada dibujo se coloca con `"at": [x, y]`.
+
+![Escena de la demo](skills/hand-drawn-diagrams/examples/scene-demo.png)
+→ [`scene-demo.json`](skills/hand-drawn-diagrams/examples/scene-demo.json)
+
+> **Prompt:** *"Explica la demo que hice en la formación de PMs (Claude diseña, Granola graba el feedback y Claude aplica los cambios por MCP), pero con el whiteboard terminado"*
+
 ### Wireframe de escritorio
 Una sola pantalla con navegador, filtros, mapa destacado, ficha y botones de acción.
 
@@ -78,6 +86,7 @@ Pídeselo a Claude con naturalidad:
 
 - *"Dibújame en estilo pizarra el flujo de alta de un cliente"*
 - *"Haz un wireframe a mano de la pantalla de checkout"*
+- *"Explícame cómo funciona nuestro proceso de soporte como en un vídeo de pizarra"*
 - *"Usa /hand-drawn-diagrams para el proceso de aprobación de facturas"*
 
 También puedes renderizar una especificación directamente:
@@ -98,6 +107,7 @@ Toda la referencia del formato está en [`reference/spec-format.md`](skills/hand
 | Wireframes | una sola pantalla con texto realista |
 | Tableros | columnas (o filas) de tarjetas en orden, tipo kanban o tablero de estado |
 | Mapas | esquemáticos por coordenadas: costa, zonas, frentes, lugares, unidades y flechas con etiquetas que se colocan solas |
+| Escenas | ilustraciones tipo vídeo de pizarra: personas, portátil, móviles, nubes, bocadillos, libreta, micro, bombilla, documentos, pasos numerados y flechas |
 
 Estilo configurable: fuente (Kalam o Caveat), rugosidad, tipo de relleno, color de acento y semilla.
 

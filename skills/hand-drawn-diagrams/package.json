@@ -1,6 +1,6 @@
 {
   "name": "hand-drawn-diagrams",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Hand-drawn style diagrams (rough.js + ELK). Prebuilt: scripts/render.mjs runs with plain Node, no npm install.",
   "keywords": [
     "claude",
@@ -21,7 +21,7 @@
   "scripts": {
     "build": "node build.mjs",
     "check-build": "node build.mjs --check",
-    "examples": "node scripts/render.mjs examples/workflow.json --out out/workflow && node scripts/render.mjs examples/onboarding.json --out out/onboarding && node scripts/render.mjs examples/forest-owners.json --out out/forest-owners && node scripts/render.mjs examples/wireframe.json --out out/wireframe && node scripts/render.mjs examples/board.json --out out/board && node scripts/render.mjs examples/map-normandy.json --out out/map-normandy"
+    "examples": "node scripts/render.mjs examples/workflow.json --out out/workflow && node scripts/render.mjs examples/onboarding.json --out out/onboarding && node scripts/render.mjs examples/forest-owners.json --out out/forest-owners && node scripts/render.mjs examples/wireframe.json --out out/wireframe && node scripts/render.mjs examples/board.json --out out/board && node scripts/render.mjs examples/map-normandy.json --out out/map-normandy && node scripts/render.mjs examples/scene-demo.json --out out/scene-demo"
   },
   "devDependencies": {
     "@resvg/resvg-wasm": "^2.6.2",
