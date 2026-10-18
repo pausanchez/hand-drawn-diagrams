@@ -1,7 +1,7 @@
 {
   "name": "hand-drawn-diagrams",
-  "version": "1.3.0",
-  "description": "Flowcharts, workflows, screen flows, wireframes, boards and maps in a sketchy hand-drawn whiteboard style (SVG + PNG).",
+  "version": "1.4.0",
+  "description": "Flowcharts, workflows, screen flows, wireframes, boards, maps and illustrated scenes in a sketchy hand-drawn whiteboard style (SVG + PNG).",
   "author": { "name": "Pau Sánchez", "url": "https://github.com/pausanchez" },
   "homepage": "https://github.com/pausanchez/hand-drawn-diagrams",
   "repository": "https://github.com/pausanchez/hand-drawn-diagrams",

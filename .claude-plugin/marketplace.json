@@ -6,8 +6,8 @@
     {
       "name": "hand-drawn-diagrams",
       "source": "./",
-      "description": "Flowcharts, workflows, screen flows, wireframes, boards and maps in a sketchy hand-drawn whiteboard style (SVG + PNG).",
-      "version": "1.3.0",
+      "description": "Flowcharts, workflows, screen flows, wireframes, boards, maps and illustrated scenes in a sketchy hand-drawn whiteboard style (SVG + PNG).",
+      "version": "1.4.0",
       "license": "MIT"
     }
   ]
