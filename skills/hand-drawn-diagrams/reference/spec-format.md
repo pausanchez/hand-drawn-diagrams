@@ -6,7 +6,7 @@ The spec is plain JSON (the `//` comments below are annotations only — do not 
 {
   "title": "Optional big title", "subtitle": "Optional one-liner",
   "direction": "RIGHT",            // RIGHT | DOWN | LEFT | UP
-  "layout": "board",               // optional: "board" (columns) or "map" (coordinates); see below
+  "layout": "board",               // optional: "board" (columns), "map" (coordinates) or "scene" (illustration); see below
   "columnWidth": 240,              // board only: fixed card/column width
   "nodes":  [ ... ],
   "edges":  [ ... ],
@@ -145,3 +145,55 @@ automatically around their point or along their line, avoiding arrows, lines, ou
 
 Colour names give a strong tone for lines, arrows and labels and the pastel tone for fills.
 A node under the legend is reported as a warning; move it or change `legendPos`.
+
+## Scene layout
+
+`"layout": "scene"` draws a **finished whiteboard illustration**, like the last frame of a whiteboard-animation
+video: people, a laptop, phones, thought clouds, speech bubbles, a notepad, a light bulb, numbered steps and
+hand-drawn arrows that tell a story. Use it to explain how something happened (a product journey, a customer
+journey, how a team works) rather than a process with decisions. See `examples/scene-launch.json`.
+
+Everything is placed by **pixel coordinates**: `"at": [x, y]` is the **centre** of each drawing, with (0, 0) at the
+top-left of the drawing area (the title sits above it). The canvas grows to fit; `"scene": { "width", "height" }` fixes it.
+
+```json
+{
+  "layout": "scene",
+  "scene": { "stepColor": "violet" },          // optional
+  "nodes": [
+    { "id": "team", "kind": "crowd", "at": [200, 300], "arm": true, "label": "El equipo", "step": 1 },
+    { "id": "idea", "kind": "cloud", "at": [200, 95], "text": "¿Y si se pudiera reservar mesa?", "tail": "team" },
+    { "id": "pc",   "kind": "laptop", "at": [700, 280], "text": "Prototipo", "prompt": "pantalla de reservas..." }
+  ],
+  "edges": [ { "from": "team", "to": "pc" } ]
+}
+```
+
+Fields every scene node takes: `at` (required), `scale` (default 1), `label` (caption under the drawing),
+`labelSize` (22), `labelColor`, `sub`, `step` (numbered badge at its top-left; `stepAt` [x, y] moves it, `stepColor`),
+`overlap: true` (silences the overlap warning for this node).
+
+| kind | Draws | Size at scale 1 | Extra fields |
+|---|---|---|---|
+| `person` | one person | 96 × 130 | `color` (shirt), `hair` (`brown` `black` `blonde` `red` `gray` `white` or hex), `arm: true` (hand up) |
+| `crowd` | people side by side | 98 per person × 145 | `count` (3) or `colors` (list of shirts), `hair` (list), `arm`, `armIndex` |
+| `laptop` | laptop with a chat on screen | 360 × 200 | `text` (title on screen), `color` (title colour, default orange), `prompt` (text in the input) |
+| `cloud` | thought cloud | fits the text | `text`, `tail` (node id or [x, y]: the little circles point there), `color` (fill) |
+| `bubble` | speech bubble | fits the text | `text`, `tail` (node id or [x, y]: the tip of the tail), `bold`, `width` (text width), `color` |
+| `notepad` | spiral notepad with lines | 170 × 210 | `text` (title), `color` (title, default green) |
+| `mic` | microphone on a stand | 64 × 130 | `color` (default green) |
+| `bulb` | light bulb with rays (the "aha") | 170 × 190 | `color` (default yellow) |
+| `doc` | sheet of paper (`stack: true` for a pile) | 130 × 165 | `text` (title), `color` |
+| `sparkle` | little star burst | 30 × 30 | `color` |
+| `text` | free text, optionally rotated | fits the text | `label`, `size` (22), `bold` (true), `color`, `width`, `rotate` (degrees) |
+| `screen`, `box`, `note`, `pill`… | the usual shapes, centred on `at` | as usual | as usual; screens also take `minHeight` |
+
+Content inside a cloud, bubble, laptop, notepad or doc is `text`; `label` is always the caption underneath.
+
+`edges` are hand-drawn arrows with an open head. `from` / `to`: node id or [x, y]. They start and stop at the
+edge of the drawings. `via`: points the arrow curves through (one point gives a nice arc). `color` (default black),
+`width` (3; 5 for the key arrow of the story), `dashed`, `arrow: false`, `both: true`, `label`, `labelSize` (20),
+`labelSide` (1 or -1: which side of the line), `labelAt` ([x, y] to place it yourself), `labelRotate`.
+
+The script warns when two drawings (with their captions) overlap, when one sticks out past the top or left
+edge, and when an arrow has no room between its ends. Move things and re-render.

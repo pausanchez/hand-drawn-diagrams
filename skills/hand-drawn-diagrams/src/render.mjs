@@ -84,6 +84,7 @@ const scale = Number(argVal('--scale', 2));
 const spec = JSON.parse(fs.readFileSync(specPath, 'utf8'));
 const LAYOUT = String(spec.layout || '').toLowerCase();
 const isMap = LAYOUT === 'map';
+const isScene = LAYOUT === 'scene';
 
 // The handwritten fonts only cover Latin letters and common punctuation. resvg has no fallback font,
 // so a missing glyph becomes a box. Swap the usual symbols for look-alikes the font does have.
@@ -200,12 +201,14 @@ const D = {
     checkGlyphs(str, bold);
     const lines = o.maxW ? wrap(str, size, o.maxW, bold) : String(str).split('\n');
     const lh = lineH(size);
+    if (o.rotate) svgParts.push(`<g transform="rotate(${Number(o.rotate)} ${x} ${(y + (lines.length * lh) / 2).toFixed(1)})">`);
     lines.forEach((ln, i) => {
       const by = y + i * lh + fs_(size) * 0.95;
       const deco = o.underline ? ' text-decoration="underline"' : '';
       const halo = o.halo ? ` stroke="${o.halo === true ? (spec.background && spec.background !== 'transparent' ? spec.background : '#ffffff') : o.halo}" stroke-width="5" stroke-linejoin="round" paint-order="stroke"` : '';
       svgParts.push(`<text x="${x}" y="${by.toFixed(1)}" font-size="${fs_(size).toFixed(1)}" text-anchor="${anchor}" fill="${o.color ?? INK}"${bold ? ' font-weight="700"' : ''}${deco}${halo}>${esc(ln)}</text>`);
     });
+    if (o.rotate) svgParts.push('</g>');
     return lines.length * lh;
   },
   textHeight(str, size, maxW, bold) { return wrap(str, size, maxW, bold).length * lineH(size); },
@@ -411,6 +414,178 @@ function chipRows(c, W) {
   return rows;
 }
 
+// ---------- scene doodles: small drawings for "layout": "scene" ----------
+// size(n, k) -> [w, h] of the drawing (k = n.scale). draw(n, cx, cy, w, h, k) draws it centred on (cx, cy).
+// Sizes run before the canvas exists, so they only measure text; colours resolve at draw time.
+const HAIR = { brown: '#7a4a2a', black: '#2e2e2e', blonde: '#d9a441', red: '#b5482b', gray: '#9aa0a6', white: '#f1f3f5' };
+const SKIN = '#f6d7b8';
+const bold_ = (c, d) => (c ? ACCENT[c] ?? c : d);          // mid tone: shirts, buttons, bulbs
+const ink_ = (c, d) => (c ? STRONG[c] ?? c : d);           // strong tone: titles, strokes
+const SW = (n, k) => (n.strokeWidth ?? 2.2) * Math.max(0.7, k);
+const textBlock = (str, size, maxW, bold = true) => {
+  const lines = wrap(str ?? '', size, maxW, bold);
+  return { lines, w: Math.max(0, ...lines.map((l) => measure(l, size, bold))), h: lines.length * lineH(size) };
+};
+// where a tail / arrow should point: [x, y] scene coordinates or a node id (filled in by drawScene)
+let sceneTarget = () => null;
+
+function drawPerson(cx, cy, k, shirt, hair, arm, sw) {
+  const y0 = cy - 35 * k; // head centre
+  D.path(`M${cx - 38 * k} ${y0 + 95 * k} Q${cx - 40 * k} ${y0 + 30 * k} ${cx} ${y0 + 28 * k} Q${cx + 40 * k} ${y0 + 30 * k} ${cx + 38 * k} ${y0 + 95 * k} Z`,
+    { fill: shirt, fillStyle: 'hachure', hachureGap: 5 * k, fillWeight: 2, strokeWidth: sw });
+  if (arm) {
+    D.line(cx + 28 * k, y0 + 45 * k, cx + 56 * k, y0 - 16 * k, { stroke: shirt, strokeWidth: 7 * k, roughness: 0.7 });
+    D.ellipse(cx + 58 * k, y0 - 22 * k, 15 * k, 15 * k, { fill: SKIN, fillStyle: 'solid', strokeWidth: sw * 0.8 });
+  }
+  D.ellipse(cx, y0, 46 * k, 46 * k, { fill: SKIN, fillStyle: 'solid', strokeWidth: sw });
+  D.path(`M${cx - 23 * k} ${y0 - 2 * k} Q${cx - 20 * k} ${y0 - 30 * k} ${cx + 4 * k} ${y0 - 24 * k} Q${cx + 24 * k} ${y0 - 20 * k} ${cx + 22 * k} ${y0 - 2 * k} Q${cx + 8 * k} ${y0 - 14 * k} ${cx - 23 * k} ${y0 - 2 * k}Z`,
+    { fill: hair, fillStyle: 'solid', strokeWidth: sw * 0.8, roughness: 0.8 });
+}
+const crowdColors = (n) => n.colors ?? (n.kind === 'person' ? [n.color ?? 'blue'] : ['yellow', 'pink', 'blue', 'green', 'violet', 'orange'].slice(0, n.count ?? 3));
+
+// tail of a speech bubble / thought cloud: from the side of the box that faces the target
+function tailBase(x, y, w, h, tx, ty) {
+  if (ty > y + h) return { side: 'b', p: [Math.min(Math.max(tx, x + 26), x + w - 26), y + h] };
+  if (ty < y) return { side: 't', p: [Math.min(Math.max(tx, x + 26), x + w - 26), y] };
+  return { side: tx > x + w / 2 ? 'r' : 'l', p: [tx > x + w / 2 ? x + w : x, Math.min(Math.max(ty, y + 18), y + h - 18)] };
+}
+
+const DOODLES = {
+  person: {
+    size: (n, k) => [96 * k, 130 * k],
+    draw: (n, cx, cy, w, h, k) => drawPerson(cx, cy, k, bold_(n.color ?? 'blue'), HAIR[n.hair] ?? n.hair ?? HAIR.brown, !!n.arm, SW(n, k)),
+  },
+  crowd: {
+    size: (n, k) => [(crowdColors(n).length * 98 - 2) * k, 145 * k],
+    draw: (n, cx, cy, w, h, k) => {
+      const cols = crowdColors(n), hairs = n.hair ? [].concat(n.hair) : ['brown', 'black', 'blonde', 'red', 'gray'];
+      cols.forEach((c, i) => {
+        const x = cx - ((cols.length - 1) * 49 - i * 98) * k, y = cy + (i % 2 ? 9 : -6) * k;
+        drawPerson(x, y, k, bold_(c), HAIR[hairs[i % hairs.length]] ?? hairs[i % hairs.length], n.arm && i === (n.armIndex ?? 0), SW(n, k));
+      });
+    },
+  },
+  laptop: {
+    size: (n, k) => [360 * k, 200 * k],
+    draw: (n, cx, cy, w, h, k) => {
+      const L = cx - w / 2, T = cy - h / 2, sw = SW(n, k);
+      D.path(`M${L + 30 * k} ${T + 150 * k} L${L + 330 * k} ${T + 150 * k} L${L + 360 * k} ${T + 200 * k} L${L} ${T + 200 * k} Z`, { fill: '#ced4da', fillStyle: 'solid', strokeWidth: sw });
+      const sx = L + 45 * k, sy = T, swd = 270 * k;
+      D.rect(sx, sy, swd, 155 * k, { fill: '#ffffff', fillStyle: 'solid', strokeWidth: sw * 1.2, r: 4 * k });
+      let y = sy + 10 * k;
+      if (n.text) { D.text(sx + swd / 2, y, n.text, { size: 28 * k, bold: true, color: ink_(n.color, STRONG.orange) }); y += 46 * k; }
+      if (n.prompt) {
+        D.rect(sx + 22 * k, y, swd - 44 * k, 26 * k, { fill: '#fff4e6', fillStyle: 'solid', strokeWidth: 1.4 * k, roughness: 0.7 });
+        D.text(sx + 30 * k, y + 2 * k, n.prompt, { size: 15 * k, anchor: 'start' });
+        y += 40 * k;
+      }
+      for (const f of [0.92, 0.78, 0.86, 0.6]) {
+        if (y > sy + 145 * k) break;
+        D.line(sx + 22 * k, y, sx + 22 * k + (swd - 44 * k) * f, y, { stroke: '#adb5bd', strokeWidth: 1.4 * k, roughness: 0.8 });
+        y += 19 * k;
+      }
+    },
+  },
+  cloud: {
+    size: (n, k) => { const t = textBlock(n.text, 24 * k, 250 * k); return [Math.max(170 * k, t.w + 100 * k), Math.max(100 * k, t.h + 60 * k)]; },
+    draw: (n, cx, cy, w, h, k) => {
+      const rx = w / 2 / 1.2, ry = h / 2 / 1.3, bumps = n.bumps ?? Math.max(8, Math.round(w / (34 * k))), fill = fillOf(n.color) ?? '#ffffff';
+      let d = '';
+      for (let i = 0; i <= bumps; i++) {
+        const t = (i / bumps) * Math.PI * 2, x = cx + rx * Math.cos(t), y = cy + ry * Math.sin(t);
+        if (!i) { d += `M${x.toFixed(1)} ${y.toFixed(1)}`; continue; }
+        const tm = ((i - 0.5) / bumps) * Math.PI * 2;
+        d += ` Q${(cx + rx * 1.34 * Math.cos(tm)).toFixed(1)} ${(cy + ry * 1.4 * Math.sin(tm)).toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}`;
+      }
+      D.path(d + 'Z', { fill, fillStyle: 'solid', strokeWidth: SW(n, k), roughness: 1 });
+      const tg = sceneTarget(n.tail);
+      if (tg) {
+        const dx = tg[0] - cx, dy = tg[1] - cy, len = Math.hypot(dx, dy) || 1, ux = dx / len, uy = dy / len;
+        const r = 1 / Math.hypot(ux / (w / 2), uy / (h / 2)), ex = cx + ux * r, ey = cy + uy * r;
+        D.ellipse(ex + ux * 14 * k, ey + uy * 14 * k, 18 * k, 18 * k, { fill, fillStyle: 'solid', strokeWidth: SW(n, k) * 0.9 });
+        D.ellipse(ex + ux * 36 * k, ey + uy * 36 * k, 10 * k, 10 * k, { fill, fillStyle: 'solid', strokeWidth: SW(n, k) * 0.8 });
+      }
+      const t = textBlock(n.text, 24 * k, 250 * k);
+      D.text(cx, cy - t.h / 2, n.text ?? '', { size: 24 * k, bold: true, maxW: 250 * k, color: ink_(n.textColor, INK) });
+    },
+  },
+  bubble: {
+    size: (n, k) => { const t = textBlock(n.text, 21 * k, n.width ?? 230 * k, !!n.bold); return [Math.max(110 * k, t.w + 44 * k), t.h + 26 * k]; },
+    draw: (n, cx, cy, w, h, k) => {
+      const x = cx - w / 2, y = cy - h / 2, fill = fillOf(n.color) ?? '#ffffff', sw = SW(n, k);
+      D.rect(x, y, w, h, { fill, fillStyle: 'solid', strokeWidth: sw, r: 4 * k, roughness: 1 });
+      const tg = sceneTarget(n.tail);
+      if (tg) {
+        const { side, p } = tailBase(x, y, w, h, tg[0], tg[1]), s = 13 * k, horiz = side === 't' || side === 'b';
+        const a = horiz ? [p[0] - s, p[1]] : [p[0], p[1] - s], b = horiz ? [p[0] + s, p[1]] : [p[0], p[1] + s];
+        D.path(`M${a[0]} ${a[1]} L${tg[0]} ${tg[1]} L${b[0]} ${b[1]}`, { fill, fillStyle: 'solid', strokeWidth: sw, roughness: 0.8 });
+        // hide the bubble border under the tail's base
+        D.line(a[0] + (horiz ? 3 : 0), a[1] + (horiz ? 0 : 3), b[0] - (horiz ? 3 : 0), b[1] - (horiz ? 0 : 3), { stroke: fill, strokeWidth: sw + 2, roughness: 0.2 });
+      }
+      const t = textBlock(n.text, 21 * k, n.width ?? 230 * k, !!n.bold);
+      D.text(cx, cy - t.h / 2, n.text ?? '', { size: 21 * k, bold: !!n.bold, maxW: n.width ?? 230 * k, color: ink_(n.textColor, INK) });
+    },
+  },
+  notepad: {
+    size: (n, k) => [170 * k, 210 * k],
+    draw: (n, cx, cy, w, h, k) => {
+      const x = cx - w / 2, y = cy - h / 2, bg = spec.background && spec.background !== 'transparent' ? spec.background : '#ffffff';
+      D.rect(x, y, w, h, { fill: '#fffbe6', fillStyle: 'solid', strokeWidth: SW(n, k) * 1.2 });
+      for (let i = 0; i < 6; i++) D.ellipse(x + 18 * k + i * 27 * k, y, 14 * k, 14 * k, { fill: bg, fillStyle: 'solid', strokeWidth: 1.8 * k });
+      let ly = y + 30 * k;
+      if (n.text) { D.text(cx, y + 20 * k, n.text, { size: 25 * k, bold: true, color: ink_(n.color, STRONG.green) }); ly = y + 72 * k; }
+      for (let i = 0; ly + i * 26 * k < y + h - 14 * k; i++) D.line(x + 20 * k, ly + i * 26 * k, x + w - 20 * k - (i % 2) * 30 * k, ly + i * 26 * k, { stroke: '#868e96', strokeWidth: 1.4 * k, roughness: 0.8 });
+    },
+  },
+  mic: {
+    size: (n, k) => [64 * k, 130 * k],
+    draw: (n, cx, cy, w, h, k) => {
+      const T = cy - h / 2, sw = SW(n, k);
+      D.rect(cx - 20 * k, T, 40 * k, 72 * k, { r: 19 * k, fill: bold_(n.color ?? 'green'), fillStyle: 'solid', strokeWidth: sw });
+      D.path(`M${cx - 31 * k} ${T + 48 * k} Q${cx} ${T + 112 * k} ${cx + 31 * k} ${T + 48 * k}`, { strokeWidth: sw });
+      D.line(cx, T + 88 * k, cx, T + 122 * k, { strokeWidth: sw });
+      D.line(cx - 26 * k, T + 125 * k, cx + 26 * k, T + 125 * k, { strokeWidth: sw * 1.1 });
+    },
+  },
+  bulb: {
+    size: (n, k) => [170 * k, 190 * k],
+    draw: (n, cx, cy, w, h, k) => {
+      const by = cy - 18 * k, sw = SW(n, k);
+      for (const a of [-150, -120, -90, -60, -30]) {
+        const t = (a * Math.PI) / 180;
+        D.line(cx + 58 * k * Math.cos(t), by + 58 * k * Math.sin(t), cx + 82 * k * Math.cos(t), by + 82 * k * Math.sin(t), { stroke: ink_(n.color, '#f59f00'), strokeWidth: 3 * k });
+      }
+      D.ellipse(cx, by, 90 * k, 90 * k, { fill: bold_(n.color ?? 'yellow'), fillStyle: 'hachure', hachureGap: 6 * k, fillWeight: 2.4, strokeWidth: sw });
+      D.path(`M${cx - 16 * k} ${by + 45 * k} L${cx - 12 * k} ${by + 10 * k} L${cx - 6 * k} ${by + 22 * k} L${cx} ${by + 6 * k} L${cx + 6 * k} ${by + 22 * k} L${cx + 12 * k} ${by + 10 * k} L${cx + 16 * k} ${by + 45 * k}`, { strokeWidth: sw * 0.9 });
+      D.rect(cx - 18 * k, by + 45 * k, 36 * k, 28 * k, { fill: '#ced4da', fillStyle: 'solid', strokeWidth: sw });
+      D.line(cx - 18 * k, by + 82 * k, cx + 18 * k, by + 82 * k, { strokeWidth: sw });
+    },
+  },
+  sparkle: {
+    size: (n, k) => [30 * k, 30 * k],
+    draw: (n, cx, cy, w, h, k) => {
+      const s = 14 * k, c = ink_(n.color, '#f59f00'), o = { stroke: c, strokeWidth: 3 * k, roughness: 0.8 };
+      D.line(cx - s, cy, cx + s, cy, o); D.line(cx, cy - s, cx, cy + s, o);
+      D.line(cx - s * 0.6, cy - s * 0.6, cx + s * 0.6, cy + s * 0.6, { ...o, strokeWidth: 2 * k }); D.line(cx - s * 0.6, cy + s * 0.6, cx + s * 0.6, cy - s * 0.6, { ...o, strokeWidth: 2 * k });
+    },
+  },
+  doc: {
+    size: (n, k) => [(130 + (n.stack ? 16 : 0)) * k, (165 + (n.stack ? 16 : 0)) * k],
+    draw: (n, cx, cy, w, h, k) => {
+      const sw = SW(n, k), x = cx - w / 2, y = cy - h / 2, pw = 130 * k, ph = 165 * k;
+      if (n.stack) for (const off of [16, 8]) D.rect(x + off * k, y + off * k, pw, ph, { fill: '#ffffff', fillStyle: 'solid', strokeWidth: sw * 0.9 });
+      D.rect(x, y, pw, ph, { fill: fillOf(n.color) ?? '#ffffff', fillStyle: 'solid', strokeWidth: sw });
+      let ly = y + 26 * k;
+      if (n.text) { D.text(x + pw / 2, y + 10 * k, n.text, { size: 18 * k, bold: true, maxW: pw - 20 * k }); ly = y + 50 * k + (textBlock(n.text, 18 * k, pw - 20 * k).h - lineH(18 * k)); }
+      for (let i = 0; ly + i * 18 * k < y + ph - 14 * k; i++) D.line(x + 16 * k, ly + i * 18 * k, x + pw - 16 * k - ((i * 37) % 3) * 14 * k, ly + i * 18 * k, { stroke: '#868e96', strokeWidth: 1.4 * k, roughness: 0.9 });
+    },
+  },
+  text: {
+    size: (n, k) => { const t = textBlock(n.label, (n.size ?? 22) * k, n.width ?? 420, n.bold ?? true); return [Math.max(t.w, 10), t.h]; },
+    draw: (n, cx, cy, w, h, k) => D.text(cx, cy - h / 2, n.label ?? '', { size: (n.size ?? 22) * k, bold: n.bold ?? true, maxW: n.width ?? 420, color: ink_(n.color, INK), rotate: n.rotate }),
+  },
+};
+
 // ---------- node sizing ----------
 const DEVICES = { phone: { w: 250, minH: 500, pad: 18, top: 34, r: 30 }, tablet: { w: 420, minH: 560, pad: 24, top: 30, r: 22 }, desktop: { w: 560, minH: 360, pad: 24, top: 40, r: 10 } };
 const CAPTION_H = 34;
@@ -425,7 +600,7 @@ function screenLayout(n) {
     return { c, def, h: def.h(c, W), id: c.id ?? `${c.type}${i}` };
   }).filter(Boolean);
   let content = comps.reduce((a, k) => a + k.h, 0) + Math.max(0, comps.length - 1) * GAP;
-  const frameH = Math.max(dev.minH, dev.top + content + dev.pad + 22);
+  const frameH = Math.max(n.minHeight ?? dev.minH, dev.top + content + dev.pad + 22);
   const flexIdx = comps.findIndex((k) => k.c.type === 'spacer' && k.c.flex);
   const extra = frameH - (dev.top + content + dev.pad + 22);
   let y = dev.top + 6;
@@ -440,6 +615,7 @@ function screenLayout(n) {
 function nodeSize(n) {
   const kind = n.kind || (n.components ? 'screen' : 'box');
   n.kind = kind;
+  if (isScene && DOODLES[kind]) { const k = n.scale ?? 1, [w, h] = DOODLES[kind].size(n, k); return [Math.round(w), Math.round(h)]; }
   if (kind === 'screen') {
     n._screen = screenLayout(n);
     n._capH = n.label ? CAPTION_H : 0;
@@ -492,7 +668,7 @@ for (const n of nodes) {
   n._w = w; n._h = h;
   elkNodes.set(n.id, { id: n.id, width: w, height: h });
 }
-const edges = (isMap ? [] : (spec.edges || [])).map((e, i) => ({ ...e, _id: `e${i}`, _from: resolveEnd(e.from, 'from'), _to: resolveEnd(e.to, 'to') })).filter((e) => e._from && e._to);
+const edges = (isMap || isScene ? [] : (spec.edges || [])).map((e, i) => ({ ...e, _id: `e${i}`, _from: resolveEnd(e.from, 'from'), _to: resolveEnd(e.to, 'to') })).filter((e) => e._from && e._to);
 
 // component ports
 for (const [nid, parts] of portsByNode) {
@@ -833,6 +1009,129 @@ function drawMap() {
   }
 }
 
+// ---------- scene layout: an illustrated whiteboard, everything placed by pixel coordinates ----------
+// Nodes have "at": [x, y] = centre of the drawing. Doodles (DOODLES) plus every normal kind (box, note, screen...).
+const sceneBox = new Map(); // id -> { cx, cy, w, h, capH, capMaxW }, scene coordinates (before margins)
+const capMaxW = (n) => Math.max(n._w, 220);
+function sceneCaptionH(n) {
+  if (!DOODLES[n.kind] || n.kind === 'text' || !n.label) return 0;
+  const mw = capMaxW(n);
+  return 6 + textBlock(n.label, n.labelSize ?? 22, mw).h + (n.sub ? textBlock(n.sub, 15, mw, false).h : 0);
+}
+function sceneLayout() {
+  let maxX = 0, maxY = 0;
+  for (const n of nodes) {
+    if (!isPt(n.at)) { warn(`Scene node "${n.id}" needs "at": [x, y] (pixels, centre of the drawing)`); continue; }
+    const [cx, cy] = n.at, w = n._w, h = n._h, capH = sceneCaptionH(n);
+    const capW = capH ? Math.max(...wrap(n.label, n.labelSize ?? 22, capMaxW(n), true).map((l) => measure(l, n.labelSize ?? 22, true))) : 0;
+    sceneBox.set(n.id, { cx, cy, w, h, capH, hw: Math.max(w, capW) / 2 });
+    maxX = Math.max(maxX, cx + Math.max(w, capW) / 2);
+    maxY = Math.max(maxY, cy + h / 2 + capH);
+    if (cx - Math.max(w, capW) / 2 < -4 || cy - h / 2 < -4) warn(`Scene node "${n.id}" sticks out past the top or left edge: increase its "at" coordinates`);
+  }
+  for (const e of spec.edges || []) for (const p of [e.from, e.to, ...(e.via || [])]) if (isPt(p)) { maxX = Math.max(maxX, p[0]); maxY = Math.max(maxY, p[1]); }
+  // overlapping drawings are almost always a placement mistake; "overlap": true on a node allows it
+  const boxes = [...sceneBox.entries()].filter(([id]) => { const n = byId.get(id); return n.kind !== 'sparkle' && !n.overlap; })
+    .map(([id, b]) => ({ id, x: b.cx - b.hw, y: b.cy - b.h / 2, w: b.hw * 2, h: b.h + b.capH }));
+  for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+    const a = boxes[i], b = boxes[j];
+    const ov = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) * Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    if (ov > 0.06 * Math.min(a.w * a.h, b.w * b.h)) warn(`Scene nodes "${a.id}" and "${b.id}" overlap (with their captions): move one, or set "overlap": true if it's intended`);
+  }
+  const sc = spec.scene ?? {};
+  return { width: sc.width ?? Math.ceil(maxX + 12), height: sc.height ?? Math.ceil(maxY + 12), children: [], edges: [] };
+}
+
+// Catmull-Rom points through pts (close to what rough.js curve() draws): for arrowheads and label spots.
+function catmull(pts, per = 16) {
+  if (pts.length < 3) return pts;
+  const out = [], P = [pts[0], ...pts, pts.at(-1)];
+  for (let i = 1; i < P.length - 2; i++) for (let s = 0; s < per; s++) {
+    const t = s / per, t2 = t * t, t3 = t2 * t, [p0, p1, p2, p3] = [P[i - 1], P[i], P[i + 1], P[i + 2]];
+    out.push([0, 1].map((j) => 0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * t3)));
+  }
+  out.push(pts.at(-1));
+  return out;
+}
+
+function drawScene() {
+  const abs = (p) => [OX + p[0], OY + p[1]];
+  sceneTarget = (ref) => {
+    if (ref == null) return null;
+    if (isPt(ref)) return abs(ref);
+    const b = sceneBox.get(ref);
+    if (b) return abs([b.cx, b.cy]);
+    warn(`Target ${JSON.stringify(ref)} is not a node id or [x, y]`);
+    return null;
+  };
+  const halo = spec.background && spec.background !== 'transparent' ? spec.background : '#ffffff';
+
+  // drawings, in listed order (later ones on top), each with its caption underneath
+  for (const n of nodes) {
+    const b = sceneBox.get(n.id); if (!b) continue;
+    const [cx, cy] = abs([b.cx, b.cy]);
+    if (DOODLES[n.kind]) DOODLES[n.kind].draw(n, cx, cy, b.w, b.h, n.scale ?? 1);
+    else { pos.set(n.id, { x: b.cx - b.w / 2, y: b.cy - b.h / 2 }); drawNode(n); }
+    if (b.capH) {
+      const mw = capMaxW(n);
+      const y = cy + b.h / 2 + 6 + D.text(cx, cy + b.h / 2 + 6, n.label, { size: n.labelSize ?? 22, bold: true, maxW: mw, color: ink_(n.labelColor, INK) });
+      if (n.sub) D.text(cx, y, n.sub, { size: 15, maxW: mw, color: MUTED });
+    }
+  }
+
+  // arrows: from/to = node id or [x, y]; "via" bends them into a curve; they stop at the drawing's edge
+  // the drawing plus its caption underneath, so arrows don't run over the caption
+  const rectOf = (b) => ({ cx: OX + b.cx, cy: OY + b.cy + b.capH / 2, hw: Math.max(b.w / 2, b.capH ? b.hw : 0) + 8, hh: (b.h + b.capH) / 2 + 8 });
+  const inside = (p, r) => r && Math.abs(p[0] - r.cx) < r.hw && Math.abs(p[1] - r.cy) < r.hh;
+  // dense points along the whole path, then cut away what lies inside the start and end drawings
+  const dense = (pts) => (pts.length > 2 ? catmull(pts, 24) : Array.from({ length: 41 }, (_, i) => [pts[0][0] + ((pts[1][0] - pts[0][0]) * i) / 40, pts[0][1] + ((pts[1][1] - pts[0][1]) * i) / 40]));
+  const head = (tip, from, stroke, w) => {
+    const ang = Math.atan2(tip[1] - from[1], tip[0] - from[0]), L = 12 + w * 2.6;
+    for (const s of [-0.45, 0.45]) D.line(tip[0], tip[1], tip[0] - L * Math.cos(ang + s), tip[1] - L * Math.sin(ang + s), { stroke, strokeWidth: w, roughness: 0.8 });
+  };
+  for (const e of spec.edges || []) {
+    const end = (ref) => (isPt(ref) ? { p: abs(ref) } : sceneBox.has(ref) ? { p: abs([sceneBox.get(ref).cx, sceneBox.get(ref).cy]), r: rectOf(sceneBox.get(ref)) } : null);
+    const a = end(e.from), b = end(e.to);
+    if (!a || !b) { warn(`Scene arrow ${JSON.stringify(e.from)} -> ${JSON.stringify(e.to)}: unknown node (use a node id or [x, y])`); continue; }
+    const ctrl = [a.p, ...(e.via || []).filter(isPt).map(abs), b.p];
+    let curve = dense(ctrl), i0 = 0, i1 = curve.length - 1;
+    while (i0 < i1 && inside(curve[i0], a.r)) i0++;
+    while (i1 > i0 && inside(curve[i1], b.r)) i1--;
+    if (i1 - i0 < 2) { warn(`Scene arrow ${JSON.stringify(e.from)} -> ${JSON.stringify(e.to)} has no room between the two drawings: move them apart`); continue; }
+    curve = curve.slice(i0, i1 + 1);
+    const stroke = ink_(e.color, INK), w = e.width ?? 3;
+    const o = { stroke, strokeWidth: w, roughness: e.roughness ?? 1, bowing: 1 };
+    if (ctrl.length > 2) { const step = Math.max(1, Math.floor(curve.length / 8)); const sparse = curve.filter((_, i) => i % step === 0); if (sparse.at(-1) !== curve.at(-1)) sparse.push(curve.at(-1)); emit(gen.curve(sparse, opts(o)), { dashed: e.dashed }); }
+    else D.line(...curve[0], ...curve.at(-1), { ...o, dashed: e.dashed });
+    if (e.arrow !== false) head(curve.at(-1), curve.at(-Math.min(4, curve.length)), stroke, w);
+    if (e.both) head(curve[0], curve[Math.min(3, curve.length - 1)], stroke, w);
+    if (e.label) {
+      const size = e.labelSize ?? 20, mw = e.labelWidth ?? 260, t = textBlock(e.label, size, mw);
+      let x, y;
+      if (isPt(e.labelAt)) [x, y] = abs(e.labelAt);
+      else {
+        // middle of the arrow, pushed sideways so the text clears the line
+        let tot = 0; const seg = [];
+        for (let i = 1; i < curve.length; i++) { const l = Math.hypot(curve[i][0] - curve[i - 1][0], curve[i][1] - curve[i - 1][1]); seg.push([curve[i - 1], curve[i], tot, l]); tot += l; }
+        const d = tot / 2, [p0, p1, s0, l] = seg.find(([, , s, len]) => d <= s + len) ?? seg.at(-1), f = l ? (d - s0) / l : 0;
+        const nx = -(p1[1] - p0[1]) / (l || 1), ny = (p1[0] - p0[0]) / (l || 1), side = e.labelSide ?? 1;
+        const dd = (t.w / 2) * Math.abs(nx) + (t.h / 2) * Math.abs(ny) + 16;
+        x = p0[0] + (p1[0] - p0[0]) * f + nx * side * dd; y = p0[1] + (p1[1] - p0[1]) * f + ny * side * dd;
+      }
+      D.text(x, y - t.h / 2, e.label, { size, bold: true, maxW: mw, color: stroke, halo, rotate: e.labelRotate });
+    }
+  }
+
+  // numbered step badges on top of everything
+  for (const n of nodes) {
+    const b = sceneBox.get(n.id); if (!b || n.step == null) continue;
+    const [bx, by] = isPt(n.stepAt) ? abs(n.stepAt) : n.kind === 'text' ? abs([b.cx - b.w / 2 - 30, b.cy]) : abs([b.cx - b.w / 2 - 6, b.cy - b.h / 2 + 4]);
+    const c = ink_(n.stepColor ?? spec.scene?.stepColor ?? 'violet');
+    D.ellipse(bx, by, 40, 40, { fill: c, fillStyle: 'solid', stroke: c, strokeWidth: 2, roughness: 0.7 });
+    D.text(bx, by - fs_(21) * 0.62, String(n.step), { size: 21, bold: true, color: '#ffffff' });
+  }
+}
+
 // ---------- board layout: groups as columns (or rows), nodes in listed order, no ELK ----------
 // Returns the same shape ELK does (absolute coords), so the drawing code below is shared.
 function boardLayout() {
@@ -914,8 +1213,8 @@ function boardLayout() {
 }
 
 const board = LAYOUT === 'board';
-if (spec.layout && !board && !isMap) warn(`Unknown layout "${spec.layout}" (use "board", "map" or leave it out)`);
-const laid = isMap ? mapLayout() : board ? boardLayout() : await new ELK().layout(graph);
+if (spec.layout && !board && !isMap && !isScene) warn(`Unknown layout "${spec.layout}" (use "board", "map", "scene" or leave it out)`);
+const laid = isMap ? mapLayout() : isScene ? sceneLayout() : board ? boardLayout() : await new ELK().layout(graph);
 
 // ---------- collect absolute positions ----------
 const pos = new Map();
@@ -1068,13 +1367,14 @@ function drawEdges() {
 // ---------- assemble in z-order: title, groups, nodes, edges, labels ----------
 if (spec.title) D.text(M, M - 6, spec.title, { size: 30, bold: true, anchor: 'start' });
 if (spec.subtitle) D.text(M, M + 38, spec.subtitle, { size: 16, anchor: 'start', color: MUTED });
-for (const g of isMap ? [] : groups) {
+for (const g of isMap || isScene ? [] : groups) {
   const p = groupPos.get(g.id); if (!p) continue;
   const x = OX + p.x, y = OY + p.y;
   D.rect(x, y, p.width, p.height, { r: 16, dashed: true, roughness: 0.8, strokeWidth: 1.4, stroke: '#868e96', fill: g.color ? tint(fillOf(g.color), g.tint ?? (g.color === 'gray' ? 1 : 0.45)) : undefined, fillStyle: g.color ? 'solid' : undefined });
   if (g.label) D.text(x + 18, y + 12, g.label, { size: 17, bold: true, anchor: 'start', color: '#495057' });
 }
 if (isMap) drawMap();
+else if (isScene) drawScene();
 else {
   for (const n of nodes) if (pos.has(n.id)) drawNode(n);
   drawEdges();

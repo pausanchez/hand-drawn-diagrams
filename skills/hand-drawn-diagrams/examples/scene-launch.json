@@ -1,0 +1,52 @@
+{
+  "title": "De la idea al lanzamiento",
+  "subtitle": "Cómo un equipo pasa de una idea a una función publicada, escuchando a los usuarios por el camino",
+  "layout": "scene",
+  "seed": 5,
+  "roughness": 1.2,
+  "nodes": [
+    { "id": "idea", "kind": "cloud", "at": [200, 95], "text": "¿Y si se pudiera reservar mesa desde la app?", "tail": "team" },
+    { "id": "team", "kind": "crowd", "at": [205, 310], "arm": true, "label": "El equipo", "step": 1 },
+
+    { "id": "prd", "kind": "doc", "at": [575, 285], "stack": true, "text": "Mini PRD", "label": "Lo escriben", "step": 2 },
+
+    { "id": "laptop", "kind": "laptop", "at": [935, 280], "text": "Prototipo", "prompt": "pantalla de reservas...", "label": "Lo prototipan", "step": 3 },
+
+    { "id": "v1", "kind": "screen", "at": [1355, 275], "label": "Versión 1", "step": 4, "minHeight": 380,
+      "components": [
+        { "type": "title", "text": "Reservar mesa", "size": 22 },
+        { "type": "input", "label": "Fecha", "value": "Sáb 24 oct, 21:00" },
+        { "type": "input", "label": "Personas", "value": "4" },
+        { "type": "spacer", "flex": true },
+        { "type": "button", "text": "Continuar", "variant": "secondary" }
+      ] },
+
+    { "id": "users", "kind": "crowd", "at": [1320, 730], "colors": ["green", "orange", "violet"], "hair": ["black", "blonde", "red"], "label": "Usuarios lo prueban", "step": 5 },
+    { "id": "fb1", "kind": "bubble", "at": [1575, 610], "text": "¿Puedo elegir terraza?", "width": 130, "tail": [1445, 680] },
+    { "id": "fb2", "kind": "bubble", "at": [1575, 760], "text": "No veo el botón", "width": 130, "tail": [1455, 745] },
+
+    { "id": "v2", "kind": "screen", "at": [575, 700], "label": "Versión 2", "step": 6, "minHeight": 400,
+      "components": [
+        { "type": "title", "text": "Reservar mesa", "size": 22 },
+        { "type": "chips", "items": ["Interior", "Terraza"], "selected": ["Terraza"] },
+        { "type": "input", "label": "Fecha", "value": "Sáb 24 oct, 21:00" },
+        { "type": "input", "label": "Personas", "value": "4" },
+        { "type": "spacer", "flex": true },
+        { "type": "button", "text": "Reservar ahora", "color": "orange", "highlight": true }
+      ] },
+    { "id": "s1", "kind": "sparkle", "at": [425, 600] },
+    { "id": "s2", "kind": "sparkle", "at": [730, 640] },
+    { "id": "s3", "kind": "sparkle", "at": [720, 890] },
+
+    { "id": "launch", "kind": "bulb", "at": [150, 700], "label": "¡Lo lanzamos!", "labelSize": 30, "labelColor": "orange", "step": 7 }
+  ],
+  "edges": [
+    { "from": "team", "to": "prd" },
+    { "from": "prd", "to": "laptop" },
+    { "from": "laptop", "to": "v1" },
+    { "from": "v1", "to": "users" },
+    { "from": "users", "to": "laptop", "via": [[1150, 560]], "color": "blue", "width": 5, "label": "lo ajustan", "labelSize": 28, "labelSide": -1 },
+    { "from": "laptop", "to": "v2", "via": [[760, 520]] },
+    { "from": "v2", "to": "launch" }
+  ]
+}
